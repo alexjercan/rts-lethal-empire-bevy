@@ -21,3 +21,4 @@ bevy_asset_loader = "0.20.0"
 bevy-inspector-egui = "0.24.0"
 bevy_panorbit_camera = "0.17"
 noise = { version = "0.9.0", features = ["image"] }
+itertools = "0.12.1"

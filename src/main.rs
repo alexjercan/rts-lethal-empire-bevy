@@ -2,29 +2,14 @@ use bevy::{
     core_pipeline::{bloom::BloomSettings, tonemapping::Tonemapping},
     input::common_conditions::input_toggle_active,
     prelude::*,
-    render::{
-        render_asset::RenderAssetUsages,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-    },
 };
 use bevy_asset_loader::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use noise::utils::{ColorGradient, ImageRenderer, NoiseMapBuilder, PlaneMapBuilder};
-use noise::{Fbm, MultiFractal, Perlin};
 
-const CHUNK_SIZE: u32 = 32;
-const CHUNK_SCALE: u32 = 32;
+mod terrain;
 
-const BOUNDS_INTERVAL: f64 = 0.25;
-const DISCOVER_SIZE: u32 = 2;
-const DISCOVER_RENDER_SIZE: u32 = 2;
-
-#[derive(Component)]
-struct Chunk;
-
-#[derive(Component)]
-struct ChunkCoord(IVec2);
+use terrain::{DiscoverPositionEvent, TerrainPlugin};
 
 #[derive(Component)]
 struct Ground;
@@ -41,9 +26,13 @@ struct GameAssets {}
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(bevy::log::LogPlugin{
+            level: bevy::log::Level::DEBUG,
+            ..default()
+        }))
         .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::F1)))
         .add_plugins(PanOrbitCameraPlugin)
+        .add_plugins(TerrainPlugin)
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)
@@ -51,91 +40,15 @@ fn main() {
                 .load_collection::<GameAssets>(),
         )
         .add_systems(OnEnter(GameStates::Playing), setup)
-        .add_systems(Update, (draw_cursor,).run_if(in_state(GameStates::Playing)))
+        .add_systems(Update, (draw_cursor).run_if(in_state(GameStates::Playing)))
         .run();
-}
-
-fn map_generation(x: i32, y: i32) -> Image {
-    let fbm = Fbm::<Perlin>::new(0)
-        .set_frequency(1.0)
-        .set_persistence(0.5)
-        .set_lacunarity(2.0)
-        .set_octaves(14);
-
-    let noise_map = PlaneMapBuilder::new(fbm)
-        .set_size(
-            (CHUNK_SIZE * CHUNK_SCALE) as usize,
-            (CHUNK_SIZE * CHUNK_SCALE) as usize,
-        )
-        .set_x_bounds(
-            (x as f64) * BOUNDS_INTERVAL - BOUNDS_INTERVAL / 2.0,
-            (x as f64) * BOUNDS_INTERVAL + BOUNDS_INTERVAL / 2.0,
-        )
-        .set_y_bounds(
-            (y as f64) * BOUNDS_INTERVAL - BOUNDS_INTERVAL / 2.0,
-            (y as f64) * BOUNDS_INTERVAL + BOUNDS_INTERVAL / 2.0,
-        )
-        .build();
-
-    let image = ImageRenderer::new()
-        .set_gradient(ColorGradient::new().build_terrain_gradient())
-        .render(&noise_map);
-
-    let (width, height) = image.size();
-
-    return Image::new(
-        Extent3d {
-            width: width as u32,
-            height: height as u32,
-            ..default()
-        },
-        TextureDimension::D2,
-        image.into_iter().flatten().collect(),
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::RENDER_WORLD,
-    );
-}
-
-fn discover(x: i32, y: i32, chunks: &Vec<ChunkCoord>) -> Vec<IVec2> {
-    return (x - DISCOVER_SIZE as i32..x + DISCOVER_SIZE as i32)
-        .into_iter()
-        .flat_map(|x1| {
-            (y - DISCOVER_SIZE as i32..y + DISCOVER_SIZE as i32)
-                .into_iter()
-                .map(move |y1| IVec2::new(x1, y1))
-        })
-        .filter(|coord| !chunks.iter().map(|c| c.0).any(|c| c == *coord))
-        .collect();
 }
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut images: ResMut<Assets<Image>>,
 ) {
     // ground for clicks
     commands.spawn((GlobalTransform::default(), Ground));
-
-    // plane
-    let points = discover(0, 0, &Vec::new());
-    points.iter()
-        .map(|v| map_generation(v.x, v.y))
-        .map(|img| images.add(img))
-        .map(|handler| StandardMaterial::from(handler))
-        .zip(points.iter())
-        .for_each(|(material, point)| {
-            commands.spawn((PbrBundle {
-                mesh: meshes.add(
-                    Plane3d::default()
-                        .mesh()
-                        .size(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
-                ),
-                material: materials.add(material),
-                transform: Transform::from_translation(point.extend(0).xzy().as_vec3() * CHUNK_SIZE as f32),
-                ..default()
-            },));
-        });
 
     // light
     commands.spawn(DirectionalLightBundle {
@@ -168,6 +81,8 @@ fn draw_cursor(
     ground_query: Query<&GlobalTransform, With<Ground>>,
     windows: Query<&Window>,
     mut gizmos: Gizmos,
+    mut ev_discover_position: EventWriter<DiscoverPositionEvent>,
+    mouse_button_input: Res<ButtonInput<MouseButton>>
 ) {
     let (camera, camera_transform) = camera_query.single();
     let ground = ground_query.single();
@@ -195,4 +110,8 @@ fn draw_cursor(
         0.2,
         Color::WHITE,
     );
+
+    if mouse_button_input.just_pressed(MouseButton::Left) {
+        ev_discover_position.send(DiscoverPositionEvent(point.xz()));
+    }
 }

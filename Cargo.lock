@@ -3648,6 +3648,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_asset_loader",
  "bevy_panorbit_camera",
+ "itertools",
  "noise",
  "rand",
 ]
