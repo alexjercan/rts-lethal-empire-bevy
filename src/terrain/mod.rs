@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use bevy::{
     ecs::system::CommandQueue,
     prelude::*,
@@ -11,10 +13,17 @@ use itertools::Itertools;
 use noise::utils::{ColorGradient, ImageRenderer, NoiseMap, NoiseMapBuilder, PlaneMapBuilder};
 use noise::{Fbm, MultiFractal, Perlin};
 
-pub struct TerrainPlugin;
-
 #[derive(Debug, Event)]
-pub struct DiscoverPositionEvent(pub Vec2);
+pub struct DiscoverPositionEvent {
+    position: Vec2,
+    radius: u32,
+}
+
+impl DiscoverPositionEvent {
+    pub fn new(position: Vec2, radius: u32) -> Self {
+        DiscoverPositionEvent { position, radius }
+    }
+}
 
 #[derive(Component)]
 struct Chunk;
@@ -22,35 +31,113 @@ struct Chunk;
 #[derive(Component)]
 struct ChunkCoord(IVec2);
 
+#[derive(Debug, Clone, Copy, Resource)]
+struct TerrainConfig {
+    seed: u32,
+    chunk_size: f32,
+}
+
+impl Default for TerrainConfig {
+    fn default() -> Self {
+        TerrainConfig {
+            seed: 0,
+            chunk_size: 32.0,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct TerrainPlugin {
+    config: TerrainConfig,
+}
+
+impl Plugin for TerrainPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins(ChunkComputeCPUPlugin::default());
+        app.add_plugins(ChunkRenderCPUPlugin::default());
+        app.add_event::<DiscoverPositionEvent>();
+        app.insert_resource(self.config);
+        app.add_systems(Update, discover_position);
+    }
+}
+
+fn discover_position(
+    mut commands: Commands,
+    mut ev_disvover_position: EventReader<DiscoverPositionEvent>,
+    q_chunk_coors: Query<&ChunkCoord, With<Chunk>>,
+    config: Res<TerrainConfig>,
+) {
+    let chunk_coords = q_chunk_coors.iter().map(|c| c.0).collect::<Vec<_>>();
+
+    ev_disvover_position
+        .read()
+        .flat_map(|ev| {
+            discover(
+                (ev.position / config.chunk_size).as_ivec2(),
+                ev.radius,
+                &chunk_coords,
+            )
+        })
+        .for_each(|p| {
+            commands.spawn((Chunk, ChunkCoord(p)));
+        });
+}
+
+fn discover(position: IVec2, radius: u32, chunks: &Vec<IVec2>) -> Vec<IVec2> {
+    debug!(
+        "Triggered discover for at ({:?}) with radius {}",
+        position, radius
+    );
+
+    return (position.x - radius as i32..=position.x + radius as i32)
+        .cartesian_product(position.y - radius as i32..=position.y + radius as i32)
+        .map(|(x, y)| IVec2::new(x, y))
+        .filter(|coord| !chunks.iter().any(|c| c == coord))
+        .collect();
+}
+
+////
+
+#[derive(Debug, Clone, Copy, Resource)]
+struct ChunkComputeCPUConfig {
+    frequency: f64,
+    persistence: f64,
+    lacunarity: f64,
+    octaves: u32,
+    scale: f32,
+    bounds_interval: f64,
+}
+
+impl Default for ChunkComputeCPUConfig {
+    fn default() -> Self {
+        ChunkComputeCPUConfig {
+            frequency: 1.0,
+            persistence: 0.5,
+            lacunarity: 2.0,
+            octaves: 14,
+            scale: 8.0,
+            bounds_interval: 0.25,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct ChunkComputeCPUPlugin {
+    config: ChunkComputeCPUConfig,
+}
+
+impl Plugin for ChunkComputeCPUPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(self.config);
+        app.add_systems(Update, (spawn_noise_map_tasks, handle_noise_map_tasks));
+    }
+}
+
 #[derive(Component)]
 struct ChunkNoiseMap(NoiseMap);
 
 #[derive(Component)]
 struct ComputeNoiseMap(Task<CommandQueue>);
-
-#[derive(Component)]
-struct ChunkNoiseMapImageTMP(Image);
-
-const CHUNK_SIZE: u32 = 32;
-const CHUNK_SCALE: u32 = 8;
-
-const BOUNDS_INTERVAL: f64 = 0.25;
-const DISCOVER_SIZE: u32 = 4;
-
-impl Plugin for TerrainPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_event::<DiscoverPositionEvent>();
-        app.add_systems(
-            Update,
-            (
-                discover_position,
-                spawn_noise_map_tasks,
-                handle_noise_map_tasks,
-                handle_image_tmp,
-            ),
-        );
-    }
-}
 
 fn spawn_noise_map_tasks(
     mut commands: Commands,
@@ -62,39 +149,25 @@ fn spawn_noise_map_tasks(
             Without<ComputeNoiseMap>,
         ),
     >,
+    chunk_config: Res<ChunkComputeCPUConfig>,
+    terrain_config: Res<TerrainConfig>,
 ) {
     let thread_pool = AsyncComputeTaskPool::get();
     for (entity, chunk) in q_chunk_entities.iter() {
         let point = chunk.0;
+        let terrain_config = *terrain_config.deref();
+        let chunk_config = *chunk_config.deref();
 
         let task = thread_pool.spawn(async move {
-            let noise = noisemap(point.x, point.y);
+            let noise = noisemap(point, &terrain_config, &chunk_config);
 
             let mut command_queue = CommandQueue::default();
 
             command_queue.push(move |world: &mut World| {
-                let image = ImageRenderer::new()
-                    .set_gradient(ColorGradient::new().build_terrain_gradient())
-                    .render(&noise);
-
-                let (width, height) = image.size();
-
-                let image = Image::new(
-                    Extent3d {
-                        width: width as u32,
-                        height: height as u32,
-                        ..default()
-                    },
-                    TextureDimension::D2,
-                    image.into_iter().flatten().collect(),
-                    TextureFormat::Rgba8UnormSrgb,
-                    RenderAssetUsages::RENDER_WORLD,
-                );
 
                 world
                     .entity_mut(entity)
                     .insert(ChunkNoiseMap(noise))
-                    .insert(ChunkNoiseMapImageTMP(image))
                     .remove::<ComputeNoiseMap>();
             });
 
@@ -105,6 +178,29 @@ fn spawn_noise_map_tasks(
 
         commands.entity(entity).insert(ComputeNoiseMap(task));
     }
+}
+
+fn noisemap(coord: IVec2, terrain: &TerrainConfig, config: &ChunkComputeCPUConfig) -> NoiseMap {
+    let fbm = Fbm::<Perlin>::new(terrain.seed)
+        .set_frequency(config.frequency)
+        .set_persistence(config.persistence)
+        .set_lacunarity(config.lacunarity)
+        .set_octaves(config.octaves as usize);
+
+    let size = (terrain.chunk_size * config.scale) as usize;
+    let noise_map = PlaneMapBuilder::new(fbm)
+        .set_size(size, size)
+        .set_x_bounds(
+            (coord.x as f64) * config.bounds_interval - config.bounds_interval / 2.0,
+            (coord.x as f64) * config.bounds_interval + config.bounds_interval / 2.0,
+        )
+        .set_y_bounds(
+            (coord.y as f64) * config.bounds_interval - config.bounds_interval / 2.0,
+            (coord.y as f64) * config.bounds_interval + config.bounds_interval / 2.0,
+        )
+        .build();
+
+    return noise_map;
 }
 
 fn handle_noise_map_tasks(
@@ -119,16 +215,62 @@ fn handle_noise_map_tasks(
     }
 }
 
-fn handle_image_tmp(
+/////
+
+#[derive(Debug, Clone, Copy, Resource)]
+struct ChunkRenderCPUConfig {}
+
+impl Default for ChunkRenderCPUConfig {
+    fn default() -> Self {
+        ChunkRenderCPUConfig {}
+    }
+}
+
+#[derive(Debug, Default)]
+struct ChunkRenderCPUPlugin {
+    config: ChunkRenderCPUConfig,
+}
+
+impl Plugin for ChunkRenderCPUPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(self.config);
+        app.add_systems(Update, handle_image_render);
+    }
+}
+
+#[derive(Component)]
+struct ChunkNoiseMapImage;
+
+fn handle_image_render(
     mut commands: Commands,
-    q_chunk_entities: Query<(Entity, &ChunkCoord, &ChunkNoiseMapImageTMP), With<Chunk>>,
+    q_chunks: Query<(Entity, &ChunkCoord, &ChunkNoiseMap), (With<Chunk>, Without<ChunkNoiseMapImage>)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    config: Res<TerrainConfig>,
 ) {
-    for (entity, chunk, image) in q_chunk_entities.iter() {
+    for (entity, chunk, noisemap) in q_chunks.iter() {
         let point = chunk.0;
-        let image = image.0.clone();
+
+        debug!("Rendering image for chunk {:?}", point);
+
+        let image = ImageRenderer::new()
+            .set_gradient(ColorGradient::new().build_terrain_gradient())
+            .render(&noisemap.0);
+
+        let (width, height) = image.size();
+
+        let image = Image::new(
+            Extent3d {
+                width: width as u32,
+                height: height as u32,
+                ..default()
+            },
+            TextureDimension::D2,
+            image.into_iter().flatten().collect(),
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::RENDER_WORLD,
+        );
 
         let handler = images.add(image);
         let material = StandardMaterial::from(handler);
@@ -139,107 +281,14 @@ fn handle_image_tmp(
                 mesh: meshes.add(
                     Plane3d::default()
                         .mesh()
-                        .size(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
+                        .size(config.chunk_size, config.chunk_size),
                 ),
                 material: materials.add(material),
                 transform: Transform::from_translation(
-                    point.extend(0).xzy().as_vec3() * CHUNK_SIZE as f32,
+                    point.extend(0).xzy().as_vec3() * config.chunk_size,
                 ),
                 ..default()
             },))
-            .remove::<ChunkNoiseMapImageTMP>();
+            .insert(ChunkNoiseMapImage);
     }
-}
-
-fn discover_position(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut ev_disvover_position: EventReader<DiscoverPositionEvent>,
-    q_chunk_coors: Query<&ChunkCoord, With<Chunk>>,
-) {
-    let chunk_coords = q_chunk_coors.iter().map(|c| c.0).collect::<Vec<_>>();
-    let discover_chunks = ev_disvover_position
-        .read()
-        .map(|ev| position_to_chunk(ev.0))
-        .flat_map(|p| discover(p.x, p.y, &chunk_coords));
-
-    discover_chunks.for_each(|p| {
-        debug!("Triggered discover for new chunk {:?}", p);
-
-        let material = StandardMaterial::default();
-
-        commands.spawn((
-            PbrBundle {
-                mesh: meshes.add(
-                    Plane3d::default()
-                        .mesh()
-                        .size(CHUNK_SIZE as f32, CHUNK_SIZE as f32),
-                ),
-                material: materials.add(material),
-                transform: Transform::from_translation(
-                    p.extend(0).xzy().as_vec3() * CHUNK_SIZE as f32,
-                ),
-                ..default()
-            },
-            Chunk,
-            ChunkCoord(p),
-        ));
-    });
-}
-
-fn position_to_chunk(position: Vec2) -> IVec2 {
-    IVec2::new(
-        (position.x / CHUNK_SIZE as f32) as i32,
-        (position.y / CHUNK_SIZE as f32) as i32,
-    )
-}
-
-fn noisemap(x: i32, y: i32) -> NoiseMap {
-    let fbm = Fbm::<Perlin>::new(0)
-        .set_frequency(1.0)
-        .set_persistence(0.5)
-        .set_lacunarity(2.0)
-        .set_octaves(14);
-
-    let noise_map = PlaneMapBuilder::new(fbm)
-        .set_size(
-            (CHUNK_SIZE * CHUNK_SCALE) as usize,
-            (CHUNK_SIZE * CHUNK_SCALE) as usize,
-        )
-        .set_x_bounds(
-            (x as f64) * BOUNDS_INTERVAL - BOUNDS_INTERVAL / 2.0,
-            (x as f64) * BOUNDS_INTERVAL + BOUNDS_INTERVAL / 2.0,
-        )
-        .set_y_bounds(
-            (y as f64) * BOUNDS_INTERVAL - BOUNDS_INTERVAL / 2.0,
-            (y as f64) * BOUNDS_INTERVAL + BOUNDS_INTERVAL / 2.0,
-        )
-        .build();
-
-    /*
-        self.clear_gradient()
-            .add_gradient_point(-1.00,              [  0,   0,   0, 255])
-            .add_gradient_point(-256.0 / 16384.0,   [  6,  58, 127, 255])
-            .add_gradient_point(-1.0 / 16384.0,     [ 14, 112, 192, 255])
-            .add_gradient_point(0.0,                [ 70, 120,  60, 255])
-            .add_gradient_point(1024.0 / 16384.0,   [110, 140,  75, 255])
-            .add_gradient_point(2048.0 / 16384.0,   [160, 140, 111, 255])
-            .add_gradient_point(3072.0 / 16384.0,   [184, 163, 141, 255])
-            .add_gradient_point(4096.0 / 16384.0,   [128, 128, 128, 255])
-            .add_gradient_point(5632.0 / 16384.0,   [128, 128, 128, 255])
-            .add_gradient_point(6144.0 / 16384.0,   [250, 250, 250, 255])
-            .add_gradient_point(1.0,                [255, 255, 255, 255])
-    */
-
-    return noise_map;
-}
-
-fn discover(x: i32, y: i32, chunks: &Vec<IVec2>) -> Vec<IVec2> {
-    return (x - DISCOVER_SIZE as i32..=x + DISCOVER_SIZE as i32)
-        .cartesian_product(y - DISCOVER_SIZE as i32..=y + DISCOVER_SIZE as i32)
-        .map(|(x, y)| IVec2::new(x, y))
-        .filter(|coord| !chunks.iter().any(|c| c == coord))
-        .collect();
 }

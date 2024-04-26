@@ -32,7 +32,7 @@ fn main() {
         }))
         .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::F1)))
         .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(TerrainPlugin)
+        .add_plugins(TerrainPlugin::default())
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)
@@ -111,7 +111,7 @@ fn draw_cursor(
         Color::WHITE,
     );
 
-    if mouse_button_input.just_pressed(MouseButton::Left) {
-        ev_discover_position.send(DiscoverPositionEvent(point.xz()));
+    if mouse_button_input.pressed(MouseButton::Left) {
+        ev_discover_position.send(DiscoverPositionEvent::new(point.xz(), 8));
     }
 }
