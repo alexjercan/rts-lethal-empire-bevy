@@ -11,7 +11,7 @@ mod components;
 mod resources;
 
 #[derive(Debug, Default)]
-pub struct TerrainPlugin {
+pub(crate) struct TerrainPlugin {
     config: TerrainConfig,
 }
 

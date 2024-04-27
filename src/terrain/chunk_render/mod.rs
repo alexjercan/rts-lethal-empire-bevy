@@ -4,11 +4,13 @@
 use bevy::prelude::*;
 use noise::utils::NoiseMap;
 
+use crate::GameStates;
+
 use self::{resources::ChunkRenderCPUConfig, systems::handle_image_render};
 
-use super::components::ChunkNoiseMap;
+use super::components::NoiseMapData;
 
-impl<'a> Into<NoiseMap> for &'a ChunkNoiseMap {
+impl<'a> Into<NoiseMap> for &'a NoiseMapData {
     fn into(self) -> NoiseMap {
         let mut noisemap = NoiseMap::new(self.size.x as usize, self.size.y as usize);
         noisemap.iter_mut().zip(self.map.iter()).for_each(|(a, &b)| *a = b);
@@ -28,6 +30,6 @@ pub(super) struct ChunkRenderCPUPlugin {
 impl Plugin for ChunkRenderCPUPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(self.config);
-        app.add_systems(Update, handle_image_render);
+        app.add_systems(Update, handle_image_render.run_if(in_state(GameStates::Playing)));
     }
 }

@@ -16,7 +16,7 @@ opt-level = 3
 
 [dependencies]
 bevy = "0.13.2"
-rand = "0.8.5"
+rand = { version = "0.8.5", features = ["small_rng"] }
 bevy_asset_loader = "0.20.0"
 bevy-inspector-egui = "0.24.0"
 bevy_panorbit_camera = "0.17"

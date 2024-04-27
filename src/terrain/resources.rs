@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 #[derive(Debug, Clone, Copy, Resource)]
 pub(super) struct TerrainConfig {
-    pub(super) seed: u32,
+    pub(super) seed: u64,
     pub(super) chunk_size: f32,
 }
 

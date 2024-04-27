@@ -22,12 +22,33 @@ enum GameStates {
 }
 
 #[derive(AssetCollection, Resource)]
-struct GameAssets {}
+struct GameAssets {
+    #[asset(path = "models/lowpoly_tree/tree.gltf#Scene0")]
+    tree: Handle<Scene>,
+    #[asset(path = "models/lowpoly_tree/tree_snow.gltf#Scene0")]
+    tree_snow: Handle<Scene>,
+    #[asset(
+        paths(
+            "models/lowpoly_stone/stone_tallA.glb#Scene0",
+            "models/lowpoly_stone/stone_tallB.glb#Scene0",
+            "models/lowpoly_stone/stone_tallC.glb#Scene0",
+            "models/lowpoly_stone/stone_tallD.glb#Scene0",
+            "models/lowpoly_stone/stone_tallE.glb#Scene0",
+            "models/lowpoly_stone/stone_tallF.glb#Scene0",
+            "models/lowpoly_stone/stone_tallG.glb#Scene0",
+            "models/lowpoly_stone/stone_tallH.glb#Scene0",
+            "models/lowpoly_stone/stone_tallI.glb#Scene0",
+            "models/lowpoly_stone/stone_tallJ.glb#Scene0",
+        ),
+        collection(typed)
+    )]
+    rocks: Vec<Handle<Scene>>,
+}
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(bevy::log::LogPlugin{
-            level: bevy::log::Level::DEBUG,
+        .add_plugins(DefaultPlugins.set(bevy::log::LogPlugin {
+            level: bevy::log::Level::INFO,
             ..default()
         }))
         .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::F1)))
@@ -40,13 +61,14 @@ fn main() {
                 .load_collection::<GameAssets>(),
         )
         .add_systems(OnEnter(GameStates::Playing), setup)
-        .add_systems(Update, (draw_cursor).run_if(in_state(GameStates::Playing)))
+        .add_systems(
+            Update,
+            (update_camera_focus, draw_cursor).run_if(in_state(GameStates::Playing)),
+        )
         .run();
 }
 
-fn setup(
-    mut commands: Commands,
-) {
+fn setup(mut commands: Commands) {
     // ground for clicks
     commands.spawn((GlobalTransform::default(), Ground));
 
@@ -76,13 +98,42 @@ fn setup(
     ));
 }
 
+fn update_camera_focus(
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    ground_query: Query<&GlobalTransform, With<Ground>>,
+    mut panorbit_camera_query: Query<&mut PanOrbitCamera>,
+    windows: Query<&Window>,
+) {
+    let (camera, camera_transform) = camera_query.single();
+    let ground = ground_query.single();
+
+    let screen_center = Vec2::new(
+        windows.single().width() / 2.0,
+        windows.single().height() / 2.0,
+    );
+
+    let Some(ray) = camera.viewport_to_world(camera_transform, screen_center) else {
+        return;
+    };
+
+    let Some(distance) = ray.intersect_plane(ground.translation(), Plane3d::new(ground.up()))
+    else {
+        return;
+    };
+    let point = ray.get_point(distance);
+
+    let mut panorbit_camera = panorbit_camera_query.single_mut();
+    panorbit_camera.target_focus = point.xz().extend(0.0).xzy();
+    panorbit_camera.force_update = true;
+}
+
 fn draw_cursor(
     camera_query: Query<(&Camera, &GlobalTransform)>,
     ground_query: Query<&GlobalTransform, With<Ground>>,
     windows: Query<&Window>,
     mut gizmos: Gizmos,
     mut ev_discover_position: EventWriter<DiscoverPositionEvent>,
-    mouse_button_input: Res<ButtonInput<MouseButton>>
+    mouse_button_input: Res<ButtonInput<MouseButton>>,
 ) {
     let (camera, camera_transform) = camera_query.single();
     let ground = ground_query.single();
@@ -112,6 +163,6 @@ fn draw_cursor(
     );
 
     if mouse_button_input.pressed(MouseButton::Left) {
-        ev_discover_position.send(DiscoverPositionEvent::new(point.xz(), 8));
+        ev_discover_position.send(DiscoverPositionEvent::new(point.xz(), 4));
     }
 }

@@ -1,0 +1,2 @@
+- trees https://opengameart.org/content/low-poly-tree-1
+- stones https://opengameart.org/content/nature-kit
