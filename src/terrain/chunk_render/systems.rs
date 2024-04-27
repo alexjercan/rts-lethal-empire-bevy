@@ -8,8 +8,7 @@ use bevy::{
 use noise::utils::{ColorGradient, ImageRenderer};
 
 use crate::terrain::{
-    chunk_compute::ChunkNoiseMap,
-    components::{Chunk, ChunkCoord},
+    components::{Chunk, ChunkCoord, ChunkNoiseMap},
     TerrainConfig,
 };
 
@@ -33,7 +32,7 @@ pub(super) fn handle_image_render(
 
         let image = ImageRenderer::new()
             .set_gradient(ColorGradient::new().build_terrain_gradient())
-            .render(&noisemap.0);
+            .render(&noisemap.into());
 
         let (width, height) = image.size();
 

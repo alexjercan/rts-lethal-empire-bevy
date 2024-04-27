@@ -7,8 +7,10 @@ use bevy::{
 };
 use noise::{utils::{NoiseMap, NoiseMapBuilder, PlaneMapBuilder}, Fbm, MultiFractal, Perlin};
 
+use crate::terrain::components::ChunkNoiseMap;
+
 use super::{
-    components::{ChunkNoiseMap, ComputeNoiseMap},
+    components::ComputeNoiseMap,
     resources::ChunkComputeCPUConfig,
     Chunk, ChunkCoord, TerrainConfig,
 };
@@ -40,7 +42,7 @@ pub(super) fn spawn_noise_map_tasks(
             command_queue.push(move |world: &mut World| {
                 world
                     .entity_mut(entity)
-                    .insert(ChunkNoiseMap(noise))
+                    .insert(ChunkNoiseMap::from(noise))
                     .remove::<ComputeNoiseMap>();
             });
 
