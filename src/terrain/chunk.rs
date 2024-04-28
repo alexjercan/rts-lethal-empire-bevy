@@ -15,7 +15,7 @@ use noise::{
 
 use crate::{terrain::ResourcePiece, GameAssets, GameStates};
 
-use super::{poisson_disc::PoissonSampler, TerrainConfig};
+use super::{disc_sampling::PoissonDiscSampler, TerrainConfig};
 
 #[derive(Component)]
 pub(super) struct Chunk;
@@ -285,7 +285,7 @@ fn forest_generate(
             }
         });
 
-    let forest_points = PoissonSampler::new(terrain_config.seed)
+    let forest_points = PoissonDiscSampler::new(terrain_config.seed)
         .sample(
             chunk_config.forest_tree_radius,
             terrain_config.chunk_size,
@@ -347,7 +347,7 @@ fn rock_generate(
             }
         });
 
-    let rock_points = PoissonSampler::new(terrain_config.seed)
+    let rock_points = PoissonDiscSampler::new(terrain_config.seed)
         .sample(
             chunk_config.rock_radius,
             terrain_config.chunk_size,

@@ -80,7 +80,12 @@ fn main() {
         .add_systems(OnEnter(GameStates::Playing), setup)
         .add_systems(
             Update,
-            (update_camera_focus, draw_cursor, pick_build_brush, mine_resource)
+            (
+                update_camera_focus,
+                draw_cursor,
+                pick_build_brush,
+                mine_resource,
+            )
                 .run_if(in_state(GameStates::Playing)),
         )
         .run();
@@ -228,12 +233,20 @@ fn mine_resource(
     mut gizmos: Gizmos,
     mut commands: Commands,
     q_resource_pieces: Query<(Entity, &Transform), With<ResourcePiece>>,
-    mut q_resource_miners: Query<(&Transform, &mut MineIntervalTimer), (With<ResourceMiner>, Without<ResourcePiece>)>,
+    mut q_resource_miners: Query<
+        (&Transform, &mut MineIntervalTimer),
+        (With<ResourceMiner>, Without<ResourcePiece>),
+    >,
     time: Res<Time>,
 ) {
     for (miner_transform, mut miner_timer) in q_resource_miners.iter_mut() {
         gizmos
-            .circle(miner_transform.translation.xz().extend(0.0).xzy(), Direction3d::Y, MINER_RANGE, Color::TURQUOISE)
+            .circle(
+                miner_transform.translation.xz().extend(0.0).xzy(),
+                Direction3d::Y,
+                MINER_RANGE,
+                Color::TURQUOISE,
+            )
             .segments(64);
 
         miner_timer.0.tick(time.delta());
@@ -241,7 +254,9 @@ fn mine_resource(
             if let Some((resource, resource_transform)) = q_resource_pieces
                 .into_iter()
                 .filter(|(_, resource_transform)| {
-                    (resource_transform.translation.xz() - miner_transform.translation.xz()).length() < MINER_RANGE
+                    (resource_transform.translation.xz() - miner_transform.translation.xz())
+                        .length()
+                        < MINER_RANGE
                 })
                 .min_by(|(_, t1), (_, t2)| {
                     let d1 = (t1.translation.xz() - miner_transform.translation.xz()).length();

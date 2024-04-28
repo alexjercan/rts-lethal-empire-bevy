@@ -6,11 +6,11 @@ use rand::{
 };
 
 #[derive(Debug, Clone)]
-pub(super) struct PoissonSampler {
+pub(super) struct PoissonDiscSampler {
     rng: rand::rngs::SmallRng,
 }
 
-impl PoissonSampler {
+impl PoissonDiscSampler {
     pub(super) fn new(seed: u64) -> Self {
         Self {
             rng: SmallRng::seed_from_u64(seed),
@@ -109,8 +109,8 @@ mod tests {
 
     #[test]
     fn test_poission_sampler_seedable() {
-        let samples1 = PoissonSampler::new(0).sample(1.0, 32.0, 30);
-        let samples2 = PoissonSampler::new(0).sample(1.0, 32.0, 30);
+        let samples1 = PoissonDiscSampler::new(0).sample(1.0, 32.0, 30);
+        let samples2 = PoissonDiscSampler::new(0).sample(1.0, 32.0, 30);
         assert_eq!(samples1, samples2);
     }
 }

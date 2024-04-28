@@ -4,7 +4,7 @@ use itertools::Itertools;
 use self::chunk::{Chunk, ChunkCPUPlugin, ChunkCoord};
 
 mod chunk;
-mod poisson_disc;
+mod disc_sampling;
 
 #[derive(Component)]
 pub(crate) struct ResourcePiece;
@@ -95,6 +95,16 @@ mod tests {
 
         let result = discover(IVec2::new(0, 0), 1, &chunks);
 
-        assert_eq!(result, vec![IVec2::new(-1, -1), IVec2::new(-1, 0), IVec2::new(-1, 1), IVec2::new(0, -1), IVec2::new(1, -1), IVec2::new(1, 1)]);
+        assert_eq!(
+            result,
+            vec![
+                IVec2::new(-1, -1),
+                IVec2::new(-1, 0),
+                IVec2::new(-1, 1),
+                IVec2::new(0, -1),
+                IVec2::new(1, -1),
+                IVec2::new(1, 1)
+            ]
+        );
     }
 }
