@@ -16,3 +16,11 @@ cargo run
 
 - trees https://opengameart.org/content/low-poly-tree-1
 - stones https://opengameart.org/content/nature-kit
+
+## Plans
+
+- [ ] Implement tile based resource generation on top of perlin noise (see wave function collapse + poisson disc sampling)
+- [ ] Add the paying quota system
+- [ ] Add more buildings for each resource type (lumberjack, stone quarry)
+- [ ] Workers that bring the resources from mines to outposts (pathfinding)
+- [ ] War units and buildings that can be used to defend the base and attack enemies
