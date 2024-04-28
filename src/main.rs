@@ -9,10 +9,16 @@ use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 
 mod terrain;
 
-use terrain::{DiscoverPositionEvent, TerrainPlugin};
+use terrain::{DiscoverPositionEvent, ResourcePiece, TerrainPlugin};
 
 #[derive(Component)]
 struct Ground;
+
+#[derive(Component)]
+struct ResourceMiner;
+
+#[derive(Component)]
+struct MineIntervalTimer(Timer);
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 enum GameStates {
@@ -20,6 +26,16 @@ enum GameStates {
     AssetLoading,
     Playing,
 }
+
+#[derive(Default)]
+enum BuildBrushType {
+    #[default]
+    Discover,
+    PlaceMine,
+}
+
+#[derive(Resource, Default, Deref, DerefMut)]
+struct BuildBrush(BuildBrushType);
 
 #[derive(AssetCollection, Resource)]
 struct GameAssets {
@@ -54,6 +70,7 @@ fn main() {
         .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::F1)))
         .add_plugins(PanOrbitCameraPlugin)
         .add_plugins(TerrainPlugin::default())
+        .init_resource::<BuildBrush>()
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)
@@ -63,7 +80,8 @@ fn main() {
         .add_systems(OnEnter(GameStates::Playing), setup)
         .add_systems(
             Update,
-            (update_camera_focus, draw_cursor).run_if(in_state(GameStates::Playing)),
+            (update_camera_focus, draw_cursor, pick_build_brush, mine_resource)
+                .run_if(in_state(GameStates::Playing)),
         )
         .run();
 }
@@ -128,12 +146,16 @@ fn update_camera_focus(
 }
 
 fn draw_cursor(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
     ground_query: Query<&GlobalTransform, With<Ground>>,
     windows: Query<&Window>,
     mut gizmos: Gizmos,
     mut ev_discover_position: EventWriter<DiscoverPositionEvent>,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
+    build_brush: Res<BuildBrush>,
 ) {
     let (camera, camera_transform) = camera_query.single();
     let ground = ground_query.single();
@@ -162,7 +184,79 @@ fn draw_cursor(
         Color::WHITE,
     );
 
-    if mouse_button_input.pressed(MouseButton::Left) {
-        ev_discover_position.send(DiscoverPositionEvent::new(point.xz(), 4));
+    match build_brush.0 {
+        BuildBrushType::Discover => {
+            if mouse_button_input.pressed(MouseButton::Left) {
+                ev_discover_position.send(DiscoverPositionEvent::new(point.xz(), 4));
+            }
+        }
+        BuildBrushType::PlaceMine => {
+            if mouse_button_input.just_pressed(MouseButton::Left) {
+                commands
+                    .spawn(PbrBundle {
+                        mesh: meshes.add(Cylinder::new(0.25, 1.0)),
+                        material: materials.add(Color::TURQUOISE),
+                        transform: Transform::from_translation(point + Vec3::new(0.0, 0.5, 0.0)),
+                        ..default()
+                    })
+                    .insert(ResourceMiner)
+                    .insert(MineIntervalTimer(Timer::from_seconds(
+                        0.5,
+                        TimerMode::Repeating,
+                    )));
+            }
+        }
+    };
+}
+
+fn pick_build_brush(
+    mut build_brush: ResMut<BuildBrush>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Digit1) {
+        build_brush.0 = BuildBrushType::Discover;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Digit2) {
+        build_brush.0 = BuildBrushType::PlaceMine;
+    }
+}
+
+const MINER_RANGE: f32 = 32.0;
+
+fn mine_resource(
+    mut gizmos: Gizmos,
+    mut commands: Commands,
+    q_resource_pieces: Query<(Entity, &Transform), With<ResourcePiece>>,
+    mut q_resource_miners: Query<(&Transform, &mut MineIntervalTimer), (With<ResourceMiner>, Without<ResourcePiece>)>,
+    time: Res<Time>,
+) {
+    for (miner_transform, mut miner_timer) in q_resource_miners.iter_mut() {
+        gizmos
+            .circle(miner_transform.translation.xz().extend(0.0).xzy(), Direction3d::Y, MINER_RANGE, Color::TURQUOISE)
+            .segments(64);
+
+        miner_timer.0.tick(time.delta());
+        if miner_timer.0.finished() {
+            if let Some((resource, resource_transform)) = q_resource_pieces
+                .into_iter()
+                .filter(|(_, resource_transform)| {
+                    (resource_transform.translation.xz() - miner_transform.translation.xz()).length() < MINER_RANGE
+                })
+                .min_by(|(_, t1), (_, t2)| {
+                    let d1 = (t1.translation.xz() - miner_transform.translation.xz()).length();
+                    let d2 = (t2.translation.xz() - miner_transform.translation.xz()).length();
+                    d1.total_cmp(&d2)
+                })
+            {
+                gizmos.line(
+                    miner_transform.translation,
+                    resource_transform.translation,
+                    Color::ORANGE_RED,
+                );
+
+                commands.entity(resource).despawn_recursive();
+            }
+        }
     }
 }

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use self::{chunk_compute::ChunkComputeCPUPlugin, chunk_render::ChunkRenderCPUPlugin, resources::TerrainConfig, systems::discover_position};
 pub(crate) use self::events::DiscoverPositionEvent;
+pub(crate) use self::components::ResourcePiece;
 
 mod chunk_compute;
 mod chunk_render;

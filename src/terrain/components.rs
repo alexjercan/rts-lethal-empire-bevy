@@ -28,3 +28,6 @@ pub(super) struct ChunkData {
     pub(super) forest: Vec<TreeData>,
     pub(super) rocks: Vec<RockData>,
 }
+
+#[derive(Component)]
+pub(crate) struct ResourcePiece;
