@@ -1,7 +1,15 @@
 [package]
-name = "rts-empire-bevy"
+name = "lethal_empire_bevy"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+name = "lethal_empire_bevy"
+path = "src/lib.rs"
+
+[[bin]]
+name = "lethal_empire_bevy"
+path = "src/main.rs"
 
 # Compile with Performance Optimizations:
 # https://bevyengine.org/learn/book/getting-started/setup/#compile-with-performance-optimizations
@@ -16,9 +24,13 @@ opt-level = 3
 
 [dependencies]
 bevy = "0.13.2"
-rand = { version = "0.8.5", features = ["small_rng"] }
+rand = { version = "0.8.5" }
 bevy_asset_loader = "0.20.0"
 bevy-inspector-egui = "0.24.0"
 bevy_panorbit_camera = "0.17"
-noise = { version = "0.9.0", features = ["image"] }
+noise = { version = "0.9.0" }
 itertools = "0.12.1"
+
+[features]
+default = []
+debug = []
