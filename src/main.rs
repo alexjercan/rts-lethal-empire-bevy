@@ -78,6 +78,10 @@ struct GameAssets {
         collection(typed)
     )]
     tiles: Vec<Handle<Image>>,
+    #[asset(path = "models/lowpoly_tree/tree.gltf#Scene0")]
+    tree: Handle<Scene>,
+    #[asset(path = "models/lowpoly_stone/stone_tallA.glb#Scene0")]
+    rock: Handle<Scene>,
 }
 
 #[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -159,7 +163,10 @@ fn main() {
         .init_resource::<TerrainGenerator>()
         .init_resource::<ChunkManager>()
         .add_systems(OnEnter(GameStates::Playing), setup)
-        .add_systems(Update, (spawn_chunks_around_camera).run_if(in_state(GameStates::Playing)))
+        .add_systems(
+            Update,
+            (spawn_chunks_around_camera).run_if(in_state(GameStates::Playing)),
+        )
         .run();
 }
 
@@ -327,12 +334,44 @@ fn spawn_chunk(
                 let tile_coord = UVec2::new(x, y);
                 let noise = noisemap[map_size.x as usize * y as usize + x as usize];
                 let tile_kind = TileKind::from_noise(noise);
+
                 mapping.push(tile_kind);
                 let tile_entity = parent.spawn((TileCoord(tile_coord), tile_kind)).id();
                 tile_storage.insert(UVec2::new(x, y), tile_entity);
             }
         }
     });
+
+    let chunk_pos = helpers::geometry::chunk_coord_to_world_pos(&coord, &map_size, &tile_size);
+    info!("Chunk pos: {:?}", chunk_pos);
+    for (tile_coord, _) in tile_storage.iter() {
+        let index = map_size.x as usize * tile_coord.y as usize + tile_coord.x as usize;
+        let tile_kind = mapping[index];
+
+        let tile_off = helpers::geometry::tile_coord_to_world_offset(&tile_coord.as_ivec2(), &map_size, &tile_size);
+        let position = chunk_pos + tile_off + tile_size / 2.0;
+
+        match tile_kind {
+            TileKind::Water => (),
+            TileKind::Grass => (),
+            TileKind::Forest => {
+                commands.spawn((SceneBundle {
+                    scene: game_assets.tree.clone(),
+                    transform: Transform::from_translation(position.extend(0.0).xzy())
+                        .with_scale(Vec3::splat(4.0)),
+                    ..Default::default()
+                },));
+            },
+            TileKind::Rock => {
+                commands.spawn((SceneBundle {
+                    scene: game_assets.rock.clone(),
+                    transform: Transform::from_translation(position.extend(0.0).xzy())
+                        .with_scale(Vec3::splat(8.0)),
+                    ..Default::default()
+                },));
+            }
+        }
+    }
 
     commands.entity(tilemap_entity).insert((
         TilemapSize(map_size),
@@ -392,8 +431,12 @@ fn spawn_chunks_around_camera(
             &Vec2::splat(TILEMAP_TILE_SIZE),
         );
 
-        for y in (camera_chunk_pos.y - TILEMAP_CHUNK_RADIUS as i32)..=(camera_chunk_pos.y + TILEMAP_CHUNK_RADIUS as i32) {
-            for x in (camera_chunk_pos.x - TILEMAP_CHUNK_RADIUS as i32)..=(camera_chunk_pos.x + TILEMAP_CHUNK_RADIUS as i32) {
+        for y in (camera_chunk_pos.y - TILEMAP_CHUNK_RADIUS as i32)
+            ..=(camera_chunk_pos.y + TILEMAP_CHUNK_RADIUS as i32)
+        {
+            for x in (camera_chunk_pos.x - TILEMAP_CHUNK_RADIUS as i32)
+                ..=(camera_chunk_pos.x + TILEMAP_CHUNK_RADIUS as i32)
+            {
                 if !chunk_manager.contains(&IVec2::new(x, y)) {
                     debug!("Spawning chunk at {:?}", IVec2::new(x, y));
                     chunk_manager.insert(IVec2::new(x, y));
