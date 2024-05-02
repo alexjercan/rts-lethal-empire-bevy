@@ -1,4 +1,7 @@
-use std::{collections::HashMap, num::NonZeroU32};
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroU32,
+};
 
 use bevy::{
     prelude::*,
@@ -17,6 +20,7 @@ use bevy::{
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use itertools::Itertools;
+use lethal_empire_bevy::helpers;
 use noise::{
     utils::{NoiseMapBuilder, PlaneMapBuilder},
     Fbm, MultiFractal, Perlin,
@@ -47,8 +51,10 @@ use debug::DebugModePlugin;
 //
 // # Version 0.2
 // - [ ] Tile based map V2
-//   - [ ] create a system that can extend the map in any direction
+//   - [x] create a system that can extend the map in any direction
 //   - [ ] implement loading and unloading tiles when scrolling trough the map
+//   - [ ] keep only 3x3 tilemaps around camera
+//   - [ ] keep the rest of the chunks loaded and updated but not shown
 // - [ ] Resources
 // - [ ] Pathfinding
 //
@@ -111,16 +117,19 @@ impl Default for TerrainGenerator {
 }
 
 impl TerrainGenerator {
-    fn generate(&self, center: IVec2, size: UVec2) -> Vec<f64> {
+    fn generate(&self, coord: IVec2, size: UVec2) -> Vec<f64> {
         PlaneMapBuilder::new(self.0.clone())
             .set_size(size.x as usize, size.y as usize)
-            .set_x_bounds((center.x as f64) * 1.0 - 0.5, (center.x as f64) * 1.0 + 0.5)
-            .set_y_bounds((center.y as f64) * 1.0 - 0.5, (center.y as f64) * 1.0 + 0.5)
+            .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
+            .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
             .build()
             .into_iter()
             .collect_vec()
     }
 }
+
+#[derive(Default, Debug, Resource, Deref, DerefMut)]
+struct ChunkManager(HashSet<IVec2>);
 
 fn main() {
     let mut app = App::new();
@@ -128,7 +137,16 @@ fn main() {
     #[cfg(feature = "debug")]
     app.add_plugins(DebugModePlugin);
 
-    app.add_plugins(DefaultPlugins)
+    #[cfg(not(feature = "debug"))]
+    app.add_plugins(DefaultPlugins);
+
+    #[cfg(feature = "debug")]
+    app.add_plugins(DefaultPlugins.set(bevy::log::LogPlugin {
+        level: bevy::log::Level::DEBUG,
+        ..default()
+    }));
+
+    app
         // TODO: Using PanOrbitCameraPlugin for now, but we will need to create our own camera
         .add_plugins(PanOrbitCameraPlugin)
         .add_plugins(MaterialPlugin::<BindlessMaterial>::default())
@@ -139,8 +157,9 @@ fn main() {
                 .load_collection::<GameAssets>(),
         )
         .init_resource::<TerrainGenerator>()
+        .init_resource::<ChunkManager>()
         .add_systems(OnEnter(GameStates::Playing), setup)
-        .add_systems(Update, (update, update_tilemap).run_if(in_state(GameStates::Playing)))
+        .add_systems(Update, (spawn_chunks_around_camera).run_if(in_state(GameStates::Playing)))
         .run();
 }
 
@@ -153,6 +172,7 @@ struct BindlessMaterial {
 const MAX_TEXTURE_COUNT: usize = 4;
 const TILEMAP_SIZE: usize = 128;
 const TILEMAP_TILE_SIZE: f32 = 16.0;
+const TILEMAP_CHUNK_RADIUS: usize = 2;
 
 impl AsBindGroup for BindlessMaterial {
     type Data = ();
@@ -284,12 +304,58 @@ impl Material for BindlessMaterial {
     }
 }
 
-fn setup(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<BindlessMaterial>>,
-    game_assets: Res<GameAssets>,
+fn spawn_chunk(
+    coord: IVec2,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<BindlessMaterial>>,
+    game_assets: &Res<GameAssets>,
+    terrain_generator: &Res<TerrainGenerator>,
 ) {
+    let noisemap = terrain_generator.generate(coord, UVec2::splat(TILEMAP_SIZE as u32));
+
+    let map_size = UVec2::splat(TILEMAP_SIZE as u32);
+    let tile_size = Vec2::splat(TILEMAP_TILE_SIZE);
+
+    let tilemap_entity = commands.spawn_empty().id();
+
+    let mut tile_storage = HashMap::<UVec2, Entity>::new();
+    let mut mapping = vec![];
+    commands.entity(tilemap_entity).with_children(|parent| {
+        for y in 0..map_size.y {
+            for x in 0..map_size.x {
+                let tile_coord = UVec2::new(x, y);
+                let noise = noisemap[map_size.x as usize * y as usize + x as usize];
+                let tile_kind = TileKind::from_noise(noise);
+                mapping.push(tile_kind);
+                let tile_entity = parent.spawn((TileCoord(tile_coord), tile_kind)).id();
+                tile_storage.insert(UVec2::new(x, y), tile_entity);
+            }
+        }
+    });
+
+    commands.entity(tilemap_entity).insert((
+        TilemapSize(map_size),
+        TilemapStorage(tile_storage),
+        TilemapTileSize(tile_size),
+        MaterialMeshBundle {
+            mesh: meshes.add(Plane3d::default().mesh().size(
+                tile_size.x * map_size.x as f32,
+                tile_size.y * map_size.y as f32,
+            )),
+            material: materials.add(BindlessMaterial {
+                textures: game_assets.tiles.clone(),
+                mapping,
+            }),
+            transform: helpers::geometry::get_tilemap_coord_transform(
+                &coord, &map_size, &tile_size, 0.0,
+            ),
+            ..Default::default()
+        },
+    ));
+}
+
+fn setup(mut commands: Commands) {
     // light
     commands.spawn(DirectionalLightBundle {
         transform: Transform::from_translation(Vec3::ONE).looking_at(Vec3::ZERO, Vec3::Y),
@@ -308,42 +374,41 @@ fn setup(
             ..default()
         },
     ));
+}
 
-    // map
-    let map_size = UVec2::splat(TILEMAP_SIZE as u32);
-    let tilemap_entity = commands.spawn_empty().id();
-    let mut tile_storage = HashMap::<UVec2, Entity>::new();
-    commands.entity(tilemap_entity).with_children(|parent| {
-        for x in 0..map_size.x {
-            for y in 0..map_size.y {
-                let tile_coord = UVec2::new(x, y);
-                let tile_entity = parent
-                    .spawn((
-                        TileCoord(tile_coord),
-                        TileKind::default(),
-                    ))
-                    .id();
-                tile_storage.insert(UVec2::new(x, y), tile_entity);
+fn spawn_chunks_around_camera(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<BindlessMaterial>>,
+    game_assets: Res<GameAssets>,
+    terrain_generator: Res<TerrainGenerator>,
+    camera_query: Query<&Transform, With<Camera>>,
+    mut chunk_manager: ResMut<ChunkManager>,
+) {
+    for transform in camera_query.iter() {
+        let camera_chunk_pos = helpers::geometry::world_pos_to_chunk_coord(
+            &transform.translation.xz(),
+            &UVec2::splat(TILEMAP_SIZE as u32),
+            &Vec2::splat(TILEMAP_TILE_SIZE),
+        );
+
+        for y in (camera_chunk_pos.y - TILEMAP_CHUNK_RADIUS as i32)..=(camera_chunk_pos.y + TILEMAP_CHUNK_RADIUS as i32) {
+            for x in (camera_chunk_pos.x - TILEMAP_CHUNK_RADIUS as i32)..=(camera_chunk_pos.x + TILEMAP_CHUNK_RADIUS as i32) {
+                if !chunk_manager.contains(&IVec2::new(x, y)) {
+                    debug!("Spawning chunk at {:?}", IVec2::new(x, y));
+                    chunk_manager.insert(IVec2::new(x, y));
+                    spawn_chunk(
+                        IVec2::new(x, y),
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        &game_assets,
+                        &terrain_generator,
+                    );
+                }
             }
         }
-    });
-    let tile_size = Vec2::splat(TILEMAP_TILE_SIZE);
-    commands.entity(tilemap_entity).insert((
-        TilemapSize(map_size),
-        TilemapStorage(tile_storage),
-        TilemapTileSize(tile_size),
-        MaterialMeshBundle {
-            mesh: meshes.add(Plane3d::default().mesh().size(
-                tile_size.x * map_size.x as f32,
-                tile_size.y * map_size.y as f32,
-            )),
-            material: materials.add(BindlessMaterial {
-                textures: game_assets.tiles.clone(),
-                mapping: vec![TileKind::Grass; map_size.x as usize * map_size.y as usize],
-            }),
-            ..Default::default()
-        },
-    ));
+    }
 }
 
 #[derive(Component, Deref)]
@@ -357,42 +422,6 @@ struct TilemapStorage(HashMap<UVec2, Entity>);
 
 #[derive(Component, Deref)]
 struct TilemapTileSize(Vec2);
-
-fn update(
-    mut commands: Commands,
-    terrain_generator: Res<TerrainGenerator>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    q_tilemap: Query<(&TilemapSize, &TilemapStorage)>,
-) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        let noisemap = terrain_generator.generate(IVec2::ZERO, UVec2::splat(TILEMAP_SIZE as u32));
-
-        if let Ok((map_size, map_storage)) = q_tilemap.get_single() {
-            for (coord, entity) in map_storage.iter() {
-                let noise = noisemap[map_size.x as usize * coord.y as usize + coord.x as usize];
-                let tile_kind = TileKind::from_noise(noise);
-                commands
-                    .entity(*entity)
-                    .insert(tile_kind);
-            }
-        }
-    }
-}
-
-fn update_tilemap(
-    mut materials: ResMut<Assets<BindlessMaterial>>,
-    q_tilemap: Query<(&TilemapSize, &TilemapStorage, &Handle<BindlessMaterial>)>,
-    q_tiles: Query<&TileKind>,
-) {
-    if let Ok((map_size, map_storage, material)) = q_tilemap.get_single() {
-        let material = materials.get_mut(material).unwrap();
-
-        for (coord, tile) in map_storage.iter() {
-            let tile_kind = q_tiles.get(*tile).unwrap();
-            material.mapping[(map_size.x * coord.y + coord.x) as usize] = *tile_kind;
-        }
-    }
-}
 
 #[cfg(feature = "debug")]
 mod debug {
