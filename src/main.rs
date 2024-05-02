@@ -37,17 +37,26 @@ use debug::DebugModePlugin;
 //   - [x] implement a mapper from noise values to tile types
 //   - [x] create a custom atlas with all the tile types and textures
 //   - [x] write a shader that takes in the tile types (RGB) and the atlas and renders the map
-// - [ ] Resources
-//   - [ ] implement a system that randomly generates resources on the map
-//   - [ ] implement a new tile type for trees and rocks
-//   - [ ] add models for trees and rocks and spawn them in the world
-//   - [ ] think about a better way than just random for V2
+// - [x] Resources
+//   - [x] implement a system that randomly generates resources on the map
+//   - [x] implement a new tile type for trees and rocks
+//   - [x] add models for trees and rocks and spawn them in the world
+//   - [x] think about a better way than just random for V2
 // - [ ] Buildings
 //   - [ ] extremely simple buildings that can be placed on the map and give us resources over time
 // - [ ] Main Goal
 //   - [ ] need to pay quota of resources to the Empire over time
 //   - [ ] UI with the timer and quota needed and also how much we have
 //   - "TIME LEFT: 10:00" "QUOTA: 500/1000"
+// - [ ] Refactor
+//   - [ ] better name for "bindless material" and move it out to lib
+//   - [ ] split spawn_chunk into two functions: one should spawn just the logic, the other should
+//   be `load_chunk` which just loads the graphics; then do a `unload_chunk` which would unload the
+//   graphics for the chunk; probably this will need each tile to have a reference to the chunk
+//   entity and the chunk entity to have the coord in it
+//   - [ ] have a spawn_chunks_around_camera which just spawns the chunks and also a
+//   load_chunks_around the camera which actually loads the chunk; then have a unload the chunks
+//   for chunk that are not visible (maybe this will let us multithread the spawn)
 //
 // # Version 0.2
 // - [ ] Tile based map V2
@@ -56,6 +65,8 @@ use debug::DebugModePlugin;
 //   - [ ] keep only 3x3 tilemaps around camera
 //   - [ ] keep the rest of the chunks loaded and updated but not shown
 // - [ ] Resources
+//   - [ ] implement Poisson disc distribution for nicer resource patches in a tile
+//   - [ ] implement additional noise layer that will be used for each resource type
 // - [ ] Pathfinding
 //
 
@@ -173,7 +184,7 @@ fn main() {
 #[derive(Asset, TypePath, Debug, Clone)]
 struct BindlessMaterial {
     textures: Vec<Handle<Image>>,
-    mapping: Vec<TileKind>,
+    mapping: Vec<TileKind>, // more generic TileKind could be just an u32
 }
 
 const MAX_TEXTURE_COUNT: usize = 4;
