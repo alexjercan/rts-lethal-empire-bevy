@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use itertools::Itertools;
-use lethal_empire_bevy::{helpers, materials::tilemap::TilemapMaterial};
+use lethal_empire_bevy::tilemap::{self, materials::TilemapMaterial};
 use noise::{
     utils::{NoiseMapBuilder, PlaneMapBuilder},
     Fbm, MultiFractal, Perlin,
@@ -200,13 +200,13 @@ fn spawn_chunk(
         }
     });
 
-    let chunk_pos = helpers::geometry::chunk_coord_to_world_pos(&coord, &map_size, &tile_size);
+    let chunk_pos = tilemap::helpers::geometry::chunk_coord_to_world_pos(&coord, &map_size, &tile_size);
     info!("Chunk pos: {:?}", chunk_pos);
     for (tile_coord, _) in tile_storage.iter() {
         let index = map_size.x as usize * tile_coord.y as usize + tile_coord.x as usize;
         let tile_kind = mapping[index];
 
-        let tile_off = helpers::geometry::tile_coord_to_world_offset(
+        let tile_off = tilemap::helpers::geometry::tile_coord_to_world_offset(
             &tile_coord.as_ivec2(),
             &map_size,
             &tile_size,
@@ -249,7 +249,7 @@ fn spawn_chunk(
                 game_assets.tiles.clone(),
                 mapping.iter().map(|kind| *kind as u32).collect(),
             )),
-            transform: helpers::geometry::get_tilemap_coord_transform(
+            transform: tilemap::helpers::geometry::get_tilemap_coord_transform(
                 &coord, &map_size, &tile_size, 0.0,
             ),
             ..Default::default()
@@ -288,7 +288,7 @@ fn spawn_chunks_around_camera(
     mut chunk_manager: ResMut<ChunkManager>,
 ) {
     for transform in camera_query.iter() {
-        let camera_chunk_pos = helpers::geometry::world_pos_to_chunk_coord(
+        let camera_chunk_pos = tilemap::helpers::geometry::world_pos_to_chunk_coord(
             &transform.translation.xz(),
             &UVec2::splat(TILEMAP_SIZE as u32),
             &Vec2::splat(TILEMAP_TILE_SIZE),
