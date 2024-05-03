@@ -34,24 +34,25 @@ use debug::DebugModePlugin;
 //   - "TIME LEFT: 10:00" "QUOTA: 500/1000"
 // - [ ] Refactor
 //   - [x] better name for "bindless material" and move it out to lib
-//   - [ ] split spawn_chunk into two functions: one should spawn just the logic, the other should
+//   - [x] split spawn_chunk into two functions: one should spawn just the logic, the other should
 //   be `load_chunk` which just loads the graphics; then do a `unload_chunk` which would unload the
 //   graphics for the chunk; probably this will need each tile to have a reference to the chunk
 //   entity and the chunk entity to have the coord in it
-//   - [ ] have a spawn_chunks_around_camera which just spawns the chunks and also a
+//   - [x] have a spawn_chunks_around_camera which just spawns the chunks and also a
 //   load_chunks_around the camera which actually loads the chunk; then have a unload the chunks
 //   for chunk that are not visible (maybe this will let us multithread the spawn)
 //
 // # Version 0.2
-// - [ ] Tile based map V2
+// - [x] Tile based map V2
 //   - [x] create a system that can extend the map in any direction
-//   - [ ] implement loading and unloading tiles when scrolling trough the map
-//   - [ ] keep only 3x3 tilemaps around camera
-//   - [ ] keep the rest of the chunks loaded and updated but not shown
+//   - [x] implement loading and unloading tiles when scrolling trough the map
+//   - [x] keep only 3x3 tilemaps around camera
+//   - [x] keep the rest of the chunks loaded and updated but not shown
 // - [ ] Resources
 //   - [ ] implement Poisson disc distribution for nicer resource patches in a tile
 //   - [ ] implement additional noise layer that will be used for each resource type
 // - [ ] Pathfinding
+// - [ ] Better Camera
 //
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
@@ -229,7 +230,7 @@ impl ChunkManager {
                     self.tile_size.y * self.size.y as f32,
                 )),
                 material: materials.add(TilemapMaterial::new(
-                    TILEMAP_SIZE as u32,
+                    self.size,
                     game_assets.tiles.clone(),
                     mapping.iter().map(|kind| *kind as u32).collect(),
                 )),

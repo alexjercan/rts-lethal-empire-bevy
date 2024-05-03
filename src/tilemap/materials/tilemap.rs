@@ -19,13 +19,13 @@ const MAX_TEXTURE_COUNT: usize = 4;
 
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct TilemapMaterial {
-    size: u32,
+    size: UVec2,
     textures: Vec<Handle<Image>>,
     mapping: Vec<u32>,
 }
 
 impl TilemapMaterial {
-    pub fn new(size: u32, textures: Vec<Handle<Image>>, mapping: Vec<u32>) -> Self {
+    pub fn new(size: UVec2, textures: Vec<Handle<Image>>, mapping: Vec<u32>) -> Self {
         Self {
             size,
             textures,
@@ -64,7 +64,7 @@ impl AsBindGroup for TilemapMaterial {
         }
 
         let mapping = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("bindless_material_mapping"),
+            label: Some("tilemap_material_mapping"),
             contents: &self
                 .mapping
                 .iter()
@@ -74,13 +74,13 @@ impl AsBindGroup for TilemapMaterial {
         });
 
         let size = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("bindless_material_size"),
-            contents: &bytemuck::bytes_of(&(self.size as u32)).to_vec(),
+            label: Some("tilemap_material_size"),
+            contents: &bytemuck::bytes_of(&self.size).to_vec(),
             usage: BufferUsages::UNIFORM,
         });
 
         let bind_group = render_device.create_bind_group(
-            "bindless_material_bind_group",
+            "tilemap_material_bind_group",
             layout,
             &BindGroupEntries::sequential((
                 &textures[..],
@@ -144,7 +144,7 @@ impl AsBindGroup for TilemapMaterial {
                 // count: NonZeroU32::new((TILEMAP_SIZE * TILEMAP_SIZE) as u32),
                 count: None,
             },
-            // @group(2) @binding(3) var<uniform> size: u32;
+            // @group(2) @binding(3) var<uniform> size: vec2<u32>;
             BindGroupLayoutEntry {
                 binding: 3,
                 visibility: ShaderStages::FRAGMENT,
