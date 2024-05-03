@@ -1,5 +1,8 @@
 use bevy::prelude::*;
-use noise::{utils::{NoiseMapBuilder, PlaneMapBuilder}, Fbm, MultiFractal, Perlin};
+use noise::{
+    utils::{NoiseMapBuilder, PlaneMapBuilder},
+    Fbm, MultiFractal, Perlin,
+};
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(u32)]
@@ -23,7 +26,7 @@ impl TerrainKind {
 }
 
 #[derive(Resource, Deref)]
-pub struct TerrainGenerator(Fbm<Perlin>);
+pub struct TerrainGenerator(pub Fbm<Perlin>);
 
 impl Default for TerrainGenerator {
     fn default() -> Self {
@@ -47,5 +50,19 @@ impl TerrainGenerator {
             .into_iter()
             .map(|noise| TerrainKind::from_noise(noise))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use test::Bencher;
+
+    #[bench]
+    fn bench_terrain_generator(b: &mut Bencher) {
+        let generator = TerrainGenerator::default();
+
+        b.iter(|| generator.generate(IVec2::ZERO, UVec2::splat(128)));
     }
 }

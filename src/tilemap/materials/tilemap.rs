@@ -54,8 +54,7 @@ impl AsBindGroup for TilemapMaterial {
 
         let fallback_image = &fallback_image.d2;
 
-        let n = MAX_TEXTURE_COUNT;
-        let textures = vec![&fallback_image.texture_view; n];
+        let textures = vec![&fallback_image.texture_view; MAX_TEXTURE_COUNT];
 
         let mut textures: Vec<_> = textures.into_iter().map(|texture| &**texture).collect();
 

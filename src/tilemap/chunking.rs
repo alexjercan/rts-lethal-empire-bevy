@@ -1,51 +1,66 @@
 use std::collections::{HashMap, HashSet};
 
-use bevy::prelude::*;
+use bevy::{
+    ecs::system::{CommandQueue, SystemState},
+    prelude::*,
+    tasks::{block_on, futures_lite::future, AsyncComputeTaskPool, Task},
+};
 
 use crate::{assets::GameAssets, states::GameStates};
 
-use super::{helpers::geometry, materials::TilemapMaterial, terrain::{TerrainGenerator, TerrainKind}};
+use super::{
+    helpers::geometry,
+    materials::TilemapMaterial,
+    terrain::{TerrainGenerator, TerrainKind},
+};
 
 pub struct ChunkingPlugin;
 
 impl Plugin for ChunkingPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_plugins(MaterialPlugin::<TilemapMaterial>::default())
+        app.add_plugins(MaterialPlugin::<TilemapMaterial>::default())
             .init_resource::<TerrainGenerator>()
             .init_resource::<ChunkManager>()
             .add_systems(
                 Update,
-                (spawn_chunks_around_camera, load_chunks_around_camera, unload_chunks_outside_camera).run_if(in_state(GameStates::Playing)),
+                (
+                    spawn_chunks_around_camera,
+                    handle_spawn_chunks_task,
+                    load_chunks_around_camera,
+                    unload_chunks_outside_camera,
+                )
+                    .run_if(in_state(GameStates::Playing)),
             );
     }
 }
 
 const TILEMAP_SIZE: usize = 128;
 const TILEMAP_TILE_SIZE: f32 = 16.0;
-const TILEMAP_CHUNK_RADIUS: usize = 2;
+const TILEMAP_CHUNK_RADIUS: usize = 3;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 struct TileKind(TerrainKind);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 struct TileCoord(UVec2);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 struct TileParent(Entity);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 struct TilemapSize(UVec2);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 struct TilemapStorage(HashMap<UVec2, Entity>);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 struct TilemapTileSize(Vec2);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Debug)]
 struct TilemapCoord(IVec2);
 
+#[derive(Component, Deref, Debug)]
+struct TilemapMapping(Vec<TerrainKind>);
 
 #[derive(Debug, Resource)]
 struct ChunkManager {
@@ -67,102 +82,6 @@ impl Default for ChunkManager {
 }
 
 impl ChunkManager {
-    fn spawn(
-        &mut self,
-        coord: IVec2,
-        commands: &mut Commands,
-        terrain_generator: &Res<TerrainGenerator>,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<TilemapMaterial>>,
-        game_assets: &Res<GameAssets>,
-    ) {
-        let tilemap_entity = commands.spawn_empty().id();
-
-        let mapping = terrain_generator.generate(coord, self.size);
-
-        let mut tile_storage = HashMap::<UVec2, Entity>::new();
-        commands.entity(tilemap_entity).with_children(|parent| {
-            for y in 0..self.size.y {
-                for x in 0..self.size.x {
-                    let tile_coord = UVec2::new(x, y);
-                    let tile_kind = mapping[self.size.x as usize * y as usize + x as usize];
-
-                    let mut tile = parent.spawn((
-                        TileCoord(tile_coord),
-                        TileParent(tilemap_entity),
-                        TileKind(tile_kind),
-                        SpatialBundle {
-                            transform: geometry::get_tile_coord_transform(
-                                &tile_coord.as_ivec2(),
-                                &self.size,
-                                &self.tile_size,
-                                0.0,
-                            ),
-                            ..default()
-                        },
-                    ));
-                    let tile_entity = tile.id();
-                    tile_storage.insert(tile_coord, tile_entity);
-
-                    tile.with_children(|parent| {
-                        match tile_kind {
-                            TerrainKind::Water => (),
-                            TerrainKind::Grass => (),
-                            TerrainKind::Forest => {
-                                parent.spawn((SceneBundle {
-                                    scene: game_assets.tree.clone(),
-                                    transform: Transform::from_translation(
-                                        Vec3::ZERO,
-                                    )
-                                    .with_scale(Vec3::splat(4.0)),
-                                    ..Default::default()
-                                },));
-                            }
-                            TerrainKind::Rock => {
-                                parent.spawn((SceneBundle {
-                                    scene: game_assets.rock.clone(),
-                                    transform: Transform::from_translation(
-                                        Vec3::ZERO,
-                                    )
-                                    .with_scale(Vec3::splat(8.0)),
-                                    ..Default::default()
-                                },));
-                            }
-                        }
-                    });
-                }
-            }
-        });
-
-        commands.entity(tilemap_entity).insert((
-            TilemapSize(self.size),
-            TilemapStorage(tile_storage),
-            TilemapTileSize(self.tile_size),
-            TilemapCoord(coord),
-            MaterialMeshBundle {
-                mesh: meshes.add(Plane3d::default().mesh().size(
-                    self.tile_size.x * self.size.x as f32,
-                    self.tile_size.y * self.size.y as f32,
-                )),
-                material: materials.add(TilemapMaterial::new(
-                    self.size,
-                    game_assets.tiles.clone(),
-                    mapping.iter().map(|kind| *kind as u32).collect(),
-                )),
-                transform: geometry::get_tilemap_coord_transform(
-                    &coord,
-                    &self.size,
-                    &self.tile_size,
-                    0.0,
-                ),
-                visibility: Visibility::Hidden,
-                ..default()
-            },
-        ));
-
-        self.chunks.insert(coord, tilemap_entity);
-    }
-
     fn load(&mut self, coord: IVec2, q_tilemap: &mut Query<&mut Visibility, With<TilemapCoord>>) {
         if let Some(tilemap_entity) = self.chunks.get(&coord) {
             if let Ok(mut visibility) = q_tilemap.get_mut(*tilemap_entity) {
@@ -183,6 +102,10 @@ impl ChunkManager {
         }
     }
 
+    fn insert(&mut self, coord: IVec2, entity: Entity) {
+        self.chunks.insert(coord, entity);
+    }
+
     fn contains(&self, coord: &IVec2) -> bool {
         self.chunks.contains_key(coord)
     }
@@ -192,15 +115,16 @@ impl ChunkManager {
     }
 }
 
+#[derive(Component)]
+struct ComputeChunk(Task<CommandQueue>);
+
 fn spawn_chunks_around_camera(
     mut commands: Commands,
     terrain_generator: Res<TerrainGenerator>,
     camera_query: Query<&Transform, With<Camera>>,
     mut chunk_manager: ResMut<ChunkManager>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<TilemapMaterial>>,
-    game_assets: Res<GameAssets>,
 ) {
+    let thread_pool = AsyncComputeTaskPool::get();
     for transform in camera_query.iter() {
         let camera_chunk_pos = geometry::world_pos_to_chunk_coord(
             &transform.translation.xz(),
@@ -214,18 +138,142 @@ fn spawn_chunks_around_camera(
             for x in (camera_chunk_pos.x - TILEMAP_CHUNK_RADIUS as i32)
                 ..=(camera_chunk_pos.x + TILEMAP_CHUNK_RADIUS as i32)
             {
-                if !chunk_manager.contains(&IVec2::new(x, y)) {
+                let coord = IVec2::new(x, y);
+                if !chunk_manager.contains(&coord) {
                     debug!("Spawning chunk at {:?}", IVec2::new(x, y));
-                    chunk_manager.spawn(
-                        IVec2::new(x, y),
-                        &mut commands,
-                        &terrain_generator,
-                        &mut meshes,
-                        &mut materials,
-                        &game_assets,
-                    );
+                    let tilemap_entity = commands.spawn_empty().id();
+                    chunk_manager.insert(coord, tilemap_entity);
+
+                    let tilemap_size = chunk_manager.size;
+                    let tilemap_tile_size = chunk_manager.tile_size;
+                    let terrain_generator = TerrainGenerator(terrain_generator.clone());
+
+                    let task = thread_pool.spawn(async move {
+                        let span = info_span!("chunk_generate").entered();
+                        let mapping = terrain_generator.generate(coord, tilemap_size);
+                        span.exit();
+
+                        let mut command_queue = CommandQueue::default();
+                        command_queue.push(move |world: &mut World| {
+                            let _span = info_span!("chunk_spawn_entities").entered();
+
+                            let (tilemap_mesh, tilemap_material, game_assets) = {
+                                let mut system_state =
+                                    SystemState::<(
+                                        ResMut<Assets<Mesh>>,
+                                        ResMut<Assets<TilemapMaterial>>,
+                                        Res<GameAssets>,
+                                    )>::new(world);
+
+                                let (mut meshes, mut materials, game_assets) =
+                                    system_state.get_mut(world);
+
+                                let tilemap_mesh = meshes.add(Plane3d::default().mesh().size(
+                                    tilemap_tile_size.x * tilemap_size.x as f32,
+                                    tilemap_tile_size.y * tilemap_size.y as f32,
+                                ));
+
+                                let tilemap_material = materials.add(TilemapMaterial::new(
+                                    tilemap_size,
+                                    game_assets.tiles.clone(),
+                                    mapping.iter().map(|kind| *kind as u32).collect(),
+                                ));
+
+                                (tilemap_mesh, tilemap_material, game_assets.clone())
+                            };
+
+                            let mut tile_storage = HashMap::<UVec2, Entity>::new();
+
+                            world.entity_mut(tilemap_entity).with_children(|parent| {
+                                for y in 0..tilemap_size.y {
+                                    for x in 0..tilemap_size.x {
+                                        let tile_coord = UVec2::new(x, y);
+                                        let tile_kind = mapping
+                                            [tilemap_size.x as usize * y as usize + x as usize];
+
+                                        let mut tile = parent.spawn((
+                                            TileCoord(tile_coord),
+                                            TileParent(tilemap_entity),
+                                            TileKind(tile_kind),
+                                            SpatialBundle {
+                                                transform: geometry::get_tile_coord_transform(
+                                                    &tile_coord.as_ivec2(),
+                                                    &tilemap_size,
+                                                    &tilemap_tile_size,
+                                                    0.0,
+                                                ),
+                                                ..default()
+                                            },
+                                        ));
+                                        let tile_entity = tile.id();
+                                        tile_storage.insert(tile_coord, tile_entity);
+
+                                        tile.with_children(|parent| match tile_kind {
+                                            TerrainKind::Water => (),
+                                            TerrainKind::Grass => (),
+                                            TerrainKind::Forest => {
+                                                parent.spawn((SceneBundle {
+                                                    scene: game_assets.tree.clone(),
+                                                    transform: Transform::from_translation(
+                                                        Vec3::ZERO,
+                                                    )
+                                                    .with_scale(Vec3::splat(4.0)),
+                                                    ..Default::default()
+                                                },));
+                                            }
+                                            TerrainKind::Rock => {
+                                                parent.spawn((SceneBundle {
+                                                    scene: game_assets.rock.clone(),
+                                                    transform: Transform::from_translation(
+                                                        Vec3::ZERO,
+                                                    )
+                                                    .with_scale(Vec3::splat(8.0)),
+                                                    ..Default::default()
+                                                },));
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+
+                            world
+                                .entity_mut(tilemap_entity)
+                                .insert((
+                                    TilemapSize(tilemap_size),
+                                    TilemapStorage(tile_storage),
+                                    TilemapTileSize(tilemap_tile_size),
+                                    TilemapCoord(coord),
+                                    TilemapMapping(mapping),
+                                    MaterialMeshBundle {
+                                        mesh: tilemap_mesh,
+                                        material: tilemap_material,
+                                        transform: geometry::get_tilemap_coord_transform(
+                                            &coord,
+                                            &tilemap_size,
+                                            &tilemap_tile_size,
+                                            0.0,
+                                        ),
+                                        visibility: Visibility::Hidden,
+                                        ..default()
+                                    },
+                                ))
+                                .remove::<ComputeChunk>();
+                        });
+
+                        command_queue
+                    });
+
+                    commands.entity(tilemap_entity).insert(ComputeChunk(task));
                 }
             }
+        }
+    }
+}
+
+fn handle_spawn_chunks_task(mut commands: Commands, mut chunk_tasks: Query<&mut ComputeChunk>) {
+    for mut task in &mut chunk_tasks {
+        if let Some(mut commands_queue) = block_on(future::poll_once(&mut task.0)) {
+            commands.append(&mut commands_queue);
         }
     }
 }

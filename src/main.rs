@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use lethal_empire_bevy::{assets::GameAssets, states::GameStates, tilemap::chunking::ChunkingPlugin};
+use lethal_empire_bevy::{
+    assets::GameAssets, states::GameStates, tilemap::chunking::ChunkingPlugin,
+};
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -45,6 +47,9 @@ use debug::DebugModePlugin;
 //   - [x] keep only 3x3 tilemaps around camera
 //   - [x] keep the rest of the chunks loaded and updated but not shown
 // - [ ] Resources
+//   - [ ] use TileKind as the base of the tile: e.g Water, Land, BarrenLand
+//   - [ ] think about this: implement something like DecorationKind for specifying the resources
+//   that are on top of tiles
 //   - [ ] implement Poisson disc distribution for nicer resource patches in a tile
 //   - [ ] implement additional noise layer that will be used for each resource type
 // - [ ] Pathfinding
@@ -67,8 +72,7 @@ fn main() {
         ..default()
     }));
 
-    app
-        .add_plugins(PanOrbitCameraPlugin)
+    app.add_plugins(PanOrbitCameraPlugin)
         .add_plugins(ChunkingPlugin)
         .init_state::<GameStates>()
         .add_loading_state(
@@ -100,4 +104,3 @@ fn setup(mut commands: Commands) {
         },
     ));
 }
-
