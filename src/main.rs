@@ -32,7 +32,7 @@ use debug::DebugModePlugin;
 //   - [ ] need to pay quota of resources to the Empire over time
 //   - [ ] UI with the timer and quota needed and also how much we have
 //   - "TIME LEFT: 10:00" "QUOTA: 500/1000"
-// - [ ] Refactor
+// - [x] Refactor
 //   - [x] better name for "bindless material" and move it out to lib
 //   - [x] split spawn_chunk into two functions: one should spawn just the logic, the other should
 //   be `load_chunk` which just loads the graphics; then do a `unload_chunk` which would unload the
@@ -117,13 +117,14 @@ impl Default for TerrainGenerator {
 }
 
 impl TerrainGenerator {
-    fn generate(&self, coord: IVec2, size: UVec2) -> Vec<f64> {
+    fn generate(&self, coord: IVec2, size: UVec2) -> Vec<TileKind> {
         PlaneMapBuilder::new(self.0.clone())
             .set_size(size.x as usize, size.y as usize)
             .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
             .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
             .build()
             .into_iter()
+            .map(|noise| TileKind::from_noise(noise))
             .collect_vec()
     }
 }
@@ -159,16 +160,14 @@ impl ChunkManager {
     ) {
         let tilemap_entity = commands.spawn_empty().id();
 
-        let noisemap = terrain_generator.generate(coord, self.size);
+        let mapping = terrain_generator.generate(coord, self.size);
 
-        let mut mapping = vec![];
         let mut tile_storage = HashMap::<UVec2, Entity>::new();
         commands.entity(tilemap_entity).with_children(|parent| {
             for y in 0..self.size.y {
                 for x in 0..self.size.x {
                     let tile_coord = UVec2::new(x, y);
-                    let noise = noisemap[self.size.x as usize * y as usize + x as usize];
-                    let tile_kind = TileKind::from_noise(noise);
+                    let tile_kind = mapping[self.size.x as usize * y as usize + x as usize];
 
                     let mut tile = parent.spawn((
                         TileCoord(tile_coord),
@@ -213,8 +212,6 @@ impl ChunkManager {
                             }
                         }
                     });
-
-                    mapping.push(tile_kind as u32);
                 }
             }
         });
