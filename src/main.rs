@@ -1,26 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    num::NonZeroU32,
-};
+use std::collections::{HashMap, HashSet};
 
-use bevy::{
-    prelude::*,
-    render::{
-        render_asset::RenderAssets,
-        render_resource::{
-            AsBindGroup, AsBindGroupError, BindGroupEntries, BindGroupLayout, BindGroupLayoutEntry,
-            BindingType, BufferBindingType, BufferInitDescriptor, BufferUsages, PreparedBindGroup,
-            SamplerBindingType, ShaderRef, ShaderStages, TextureSampleType, TextureViewDimension,
-            UnpreparedBindGroup,
-        },
-        renderer::RenderDevice,
-        texture::FallbackImage,
-    },
-};
+use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use itertools::Itertools;
-use lethal_empire_bevy::helpers;
+use lethal_empire_bevy::{helpers, materials::tilemap::TilemapMaterial};
 use noise::{
     utils::{NoiseMapBuilder, PlaneMapBuilder},
     Fbm, MultiFractal, Perlin,
@@ -49,7 +33,7 @@ use debug::DebugModePlugin;
 //   - [ ] UI with the timer and quota needed and also how much we have
 //   - "TIME LEFT: 10:00" "QUOTA: 500/1000"
 // - [ ] Refactor
-//   - [ ] better name for "bindless material" and move it out to lib
+//   - [x] better name for "bindless material" and move it out to lib
 //   - [ ] split spawn_chunk into two functions: one should spawn just the logic, the other should
 //   be `load_chunk` which just loads the graphics; then do a `unload_chunk` which would unload the
 //   graphics for the chunk; probably this will need each tile to have a reference to the chunk
@@ -164,7 +148,7 @@ fn main() {
     app
         // TODO: Using PanOrbitCameraPlugin for now, but we will need to create our own camera
         .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(MaterialPlugin::<BindlessMaterial>::default())
+        .add_plugins(MaterialPlugin::<TilemapMaterial>::default())
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)
@@ -181,152 +165,15 @@ fn main() {
         .run();
 }
 
-#[derive(Asset, TypePath, Debug, Clone)]
-struct BindlessMaterial {
-    textures: Vec<Handle<Image>>,
-    mapping: Vec<TileKind>, // more generic TileKind could be just an u32
-}
-
-const MAX_TEXTURE_COUNT: usize = 4;
 const TILEMAP_SIZE: usize = 128;
 const TILEMAP_TILE_SIZE: f32 = 16.0;
 const TILEMAP_CHUNK_RADIUS: usize = 2;
-
-impl AsBindGroup for BindlessMaterial {
-    type Data = ();
-
-    fn as_bind_group(
-        &self,
-        layout: &BindGroupLayout,
-        render_device: &RenderDevice,
-        image_assets: &RenderAssets<Image>,
-        fallback_image: &FallbackImage,
-    ) -> Result<PreparedBindGroup<Self::Data>, AsBindGroupError> {
-        let mut images = vec![];
-        for handle in self.textures.iter().take(MAX_TEXTURE_COUNT) {
-            match image_assets.get(handle) {
-                Some(image) => images.push(image),
-                None => return Err(AsBindGroupError::RetryNextUpdate),
-            }
-        }
-
-        let fallback_image = &fallback_image.d2;
-
-        let textures = vec![&fallback_image.texture_view; MAX_TEXTURE_COUNT];
-
-        let mut textures: Vec<_> = textures.into_iter().map(|texture| &**texture).collect();
-
-        for (id, image) in images.into_iter().enumerate() {
-            textures[id] = &*image.texture_view;
-        }
-
-        let mapping = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("bindless_material_mapping"),
-            contents: &self
-                .mapping
-                .iter()
-                .flat_map(|kind| bytemuck::bytes_of(&(*kind as u32)).to_vec())
-                .collect::<Vec<u8>>(),
-            usage: BufferUsages::STORAGE,
-        });
-
-        let size = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("bindless_material_size"),
-            contents: &bytemuck::bytes_of(&(TILEMAP_SIZE as u32)).to_vec(),
-            usage: BufferUsages::UNIFORM,
-        });
-
-        let bind_group = render_device.create_bind_group(
-            "bindless_material_bind_group",
-            layout,
-            &BindGroupEntries::sequential((
-                &textures[..],
-                &fallback_image.sampler,
-                mapping.as_entire_binding(),
-                size.as_entire_binding(),
-            )),
-        );
-
-        Ok(PreparedBindGroup {
-            bindings: vec![],
-            bind_group,
-            data: (),
-        })
-    }
-
-    fn unprepared_bind_group(
-        &self,
-        _: &BindGroupLayout,
-        _: &RenderDevice,
-        _: &RenderAssets<Image>,
-        _: &FallbackImage,
-    ) -> Result<UnpreparedBindGroup<Self::Data>, AsBindGroupError> {
-        // we implement as_bind_group directly because
-        panic!("bindless texture arrays can't be owned")
-        // or rather, they can be owned, but then you can't make a `&'a [&'a TextureView]` from a vec of them in get_binding().
-    }
-
-    fn bind_group_layout_entries(_: &RenderDevice) -> Vec<BindGroupLayoutEntry>
-    where
-        Self: Sized,
-    {
-        vec![
-            // @group(2) @binding(0) var textures: binding_array<texture_2d<f32>>;
-            BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Texture {
-                    sample_type: TextureSampleType::Float { filterable: true },
-                    view_dimension: TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: NonZeroU32::new(MAX_TEXTURE_COUNT as u32),
-            },
-            // @group(2) @binding(1) var nearest_sampler: sampler;
-            BindGroupLayoutEntry {
-                binding: 1,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                count: None,
-            },
-            // @group(2) @binding(2) var<storage, read> mapping: array<u32>;
-            BindGroupLayoutEntry {
-                binding: 2,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                // count: NonZeroU32::new((TILEMAP_SIZE * TILEMAP_SIZE) as u32),
-                count: None,
-            },
-            // @group(2) @binding(3) var<uniform> size: u32;
-            BindGroupLayoutEntry {
-                binding: 3,
-                visibility: ShaderStages::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-        ]
-    }
-}
-
-impl Material for BindlessMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/bindless_material.wgsl".into()
-    }
-}
 
 fn spawn_chunk(
     coord: IVec2,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<BindlessMaterial>>,
+    materials: &mut ResMut<Assets<TilemapMaterial>>,
     game_assets: &Res<GameAssets>,
     terrain_generator: &Res<TerrainGenerator>,
 ) {
@@ -359,7 +206,11 @@ fn spawn_chunk(
         let index = map_size.x as usize * tile_coord.y as usize + tile_coord.x as usize;
         let tile_kind = mapping[index];
 
-        let tile_off = helpers::geometry::tile_coord_to_world_offset(&tile_coord.as_ivec2(), &map_size, &tile_size);
+        let tile_off = helpers::geometry::tile_coord_to_world_offset(
+            &tile_coord.as_ivec2(),
+            &map_size,
+            &tile_size,
+        );
         let position = chunk_pos + tile_off + tile_size / 2.0;
 
         match tile_kind {
@@ -372,7 +223,7 @@ fn spawn_chunk(
                         .with_scale(Vec3::splat(4.0)),
                     ..Default::default()
                 },));
-            },
+            }
             TileKind::Rock => {
                 commands.spawn((SceneBundle {
                     scene: game_assets.rock.clone(),
@@ -393,10 +244,11 @@ fn spawn_chunk(
                 tile_size.x * map_size.x as f32,
                 tile_size.y * map_size.y as f32,
             )),
-            material: materials.add(BindlessMaterial {
-                textures: game_assets.tiles.clone(),
-                mapping,
-            }),
+            material: materials.add(TilemapMaterial::new(
+                TILEMAP_SIZE as u32,
+                game_assets.tiles.clone(),
+                mapping.iter().map(|kind| *kind as u32).collect(),
+            )),
             transform: helpers::geometry::get_tilemap_coord_transform(
                 &coord, &map_size, &tile_size, 0.0,
             ),
@@ -429,7 +281,7 @@ fn setup(mut commands: Commands) {
 fn spawn_chunks_around_camera(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<BindlessMaterial>>,
+    mut materials: ResMut<Assets<TilemapMaterial>>,
     game_assets: Res<GameAssets>,
     terrain_generator: Res<TerrainGenerator>,
     camera_query: Query<&Transform, With<Camera>>,
