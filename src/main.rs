@@ -3,12 +3,7 @@ use std::collections::{HashMap, HashSet};
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use itertools::Itertools;
-use lethal_empire_bevy::tilemap::{self, materials::TilemapMaterial};
-use noise::{
-    utils::{NoiseMapBuilder, PlaneMapBuilder},
-    Fbm, MultiFractal, Perlin,
-};
+use lethal_empire_bevy::tilemap::{self, materials::TilemapMaterial, terrain::{TerrainGenerator, TerrainKind}};
 
 #[cfg(feature = "debug")]
 use debug::DebugModePlugin;
@@ -80,54 +75,8 @@ struct GameAssets {
     rock: Handle<Scene>,
 }
 
-#[derive(Component, Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-#[repr(u32)]
-enum TileKind {
-    #[default]
-    Water,
-    Grass,
-    Forest,
-    Rock,
-}
-
-impl TileKind {
-    fn from_noise(noise: f64) -> Self {
-        match noise {
-            n if n < 0.0 => TileKind::Water,
-            n if n < 0.2 => TileKind::Grass,
-            n if n < 0.4 => TileKind::Forest,
-            _ => TileKind::Rock,
-        }
-    }
-}
-
-#[derive(Resource, Deref)]
-struct TerrainGenerator(Fbm<Perlin>);
-
-impl Default for TerrainGenerator {
-    fn default() -> Self {
-        TerrainGenerator(
-            Fbm::<Perlin>::new(0)
-                .set_frequency(1.0)
-                .set_persistence(0.5)
-                .set_lacunarity(2.0)
-                .set_octaves(14),
-        )
-    }
-}
-
-impl TerrainGenerator {
-    fn generate(&self, coord: IVec2, size: UVec2) -> Vec<TileKind> {
-        PlaneMapBuilder::new(self.0.clone())
-            .set_size(size.x as usize, size.y as usize)
-            .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
-            .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
-            .build()
-            .into_iter()
-            .map(|noise| TileKind::from_noise(noise))
-            .collect_vec()
-    }
-}
+#[derive(Component)]
+struct TileKind(TerrainKind);
 
 #[derive(Debug, Resource)]
 struct ChunkManager {
@@ -172,7 +121,7 @@ impl ChunkManager {
                     let mut tile = parent.spawn((
                         TileCoord(tile_coord),
                         TileParent(tilemap_entity),
-                        tile_kind,
+                        TileKind(tile_kind),
                         SpatialBundle {
                             transform: tilemap::helpers::geometry::get_tile_coord_transform(
                                 &tile_coord.as_ivec2(),
@@ -188,9 +137,9 @@ impl ChunkManager {
 
                     tile.with_children(|parent| {
                         match tile_kind {
-                            TileKind::Water => (),
-                            TileKind::Grass => (),
-                            TileKind::Forest => {
+                            TerrainKind::Water => (),
+                            TerrainKind::Grass => (),
+                            TerrainKind::Forest => {
                                 parent.spawn((SceneBundle {
                                     scene: game_assets.tree.clone(),
                                     transform: Transform::from_translation(
@@ -200,7 +149,7 @@ impl ChunkManager {
                                     ..Default::default()
                                 },));
                             }
-                            TileKind::Rock => {
+                            TerrainKind::Rock => {
                                 parent.spawn((SceneBundle {
                                     scene: game_assets.rock.clone(),
                                     transform: Transform::from_translation(
