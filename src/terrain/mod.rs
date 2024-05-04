@@ -5,7 +5,6 @@ use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::Game
 
 use self::{
     chunking::ChunkManager,
-    helpers::{geometry, hash::seed_from_coord},
     materials::TerrainMaterial,
     resources::{ResourceKind, ResourceMapping, ResourcePlugin},
     tiles::{TileKind, TileMapping, TilesPlugin},
@@ -116,93 +115,78 @@ fn handle_chunks_resources(
                 for (index, (resource, tile)) in
                     resource_mapping.iter().zip(tile_mapping.iter()).enumerate()
                 {
-                    let tile_coord =
-                        UVec2::new(index as u32 % chunk_size.x, index as u32 / chunk_size.x);
-                    let global_coord = **chunk_coord * chunk_size.as_ivec2()
-                        + tile_coord.as_ivec2()
-                        - chunk_size.as_ivec2() / 2;
+                    let tile_coord = helpers::geometry::index_to_tile_coord(index, &chunk_size);
+                    let global_coord = helpers::geometry::tile_coord_to_global_coord(
+                        &tile_coord,
+                        chunk_coord,
+                        &chunk_size,
+                    );
+                    let tile_offset = helpers::geometry::tile_coord_to_world_off(
+                        &tile_coord,
+                        &chunk_size,
+                        &tile_size,
+                    );
+                    let tile_seed = helpers::hash::seed_from_coord(**terrain_seed, &global_coord);
 
                     match (resource, tile) {
                         (_, TileKind::Water) => (),
                         (ResourceKind::None, _) => (),
                         (ResourceKind::Tree, TileKind::Grass) => {
-                            let points = PoissonDiscSampler::new(seed_from_coord(
-                                **terrain_seed,
-                                &global_coord,
-                            ))
-                            .sample(12.0, tile_size, 30);
-                            let translation = helpers::geometry::get_tile_coord_translation(
-                                &tile_coord,
-                                &chunk_size,
-                                &tile_size,
-                                0.0,
-                            );
+                            let points = PoissonDiscSampler::new(tile_seed)
+                                .with_radius(8.0)
+                                .with_size(tile_size)
+                                .sample();
 
                             for point in points {
                                 let translation =
-                                    translation + (point - tile_size / 2.0).extend(0.0).xzy();
+                                    (tile_offset + point - tile_size / 2.0).extend(0.0).xzy();
 
                                 parent.spawn((SceneBundle {
                                     scene: game_assets.tree.clone(),
                                     transform: Transform::from_translation(translation)
                                         .with_scale(Vec3::splat(4.0)),
-                                    ..Default::default()
+                                    ..default()
                                 },));
                             }
                         }
                         (ResourceKind::Tree, TileKind::Barren) => {
-                            let points = PoissonDiscSampler::new(seed_from_coord(
-                                **terrain_seed,
-                                &global_coord,
-                            ))
-                            .sample(14.0, tile_size, 30);
-                            let translation = helpers::geometry::get_tile_coord_translation(
-                                &tile_coord,
-                                &chunk_size,
-                                &tile_size,
-                                0.0,
-                            );
+                            let points = PoissonDiscSampler::new(tile_seed)
+                                .with_radius(12.0)
+                                .with_size(tile_size)
+                                .sample();
 
                             for point in points {
                                 let translation =
-                                    translation + (point - tile_size / 2.0).extend(0.0).xzy();
+                                    (tile_offset + point - tile_size / 2.0).extend(0.0).xzy();
 
                                 parent.spawn((SceneBundle {
                                     scene: game_assets.tree_dead.clone(),
                                     transform: Transform::from_translation(translation)
                                         .with_scale(Vec3::splat(4.0)),
-                                    ..Default::default()
+                                    ..default()
                                 },));
                             }
                         }
                         (ResourceKind::Rock, _) => {
-                            let translation = helpers::geometry::get_tile_coord_translation(
-                                &tile_coord,
-                                &chunk_size,
-                                &tile_size,
-                                0.0,
-                            );
+                            let mut rng = StdRng::seed_from_u64(tile_seed);
+                            let points = PoissonDiscSampler::new(tile_seed)
+                                .with_radius(12.0)
+                                .with_size(tile_size)
+                                .sample();
 
-                            let mut rng = StdRng::seed_from_u64(helpers::hash::seed_from_coord(
-                                **terrain_seed,
-                                &global_coord,
-                            ));
-                            let rotation_y = rng.next_u32() as f32 / std::u32::MAX as f32
-                                * 2.0
-                                * std::f32::consts::PI;
+                            for point in points {
+                                let rotation_y = helpers::hash::random_angle(&mut rng);
+                                let translation =
+                                    (tile_offset + point - tile_size / 2.0).extend(0.0).xzy();
 
-                            parent.spawn((SceneBundle {
-                                scene: game_assets.rock.clone(),
-                                transform: Transform::from_translation(translation)
-                                    .with_scale(Vec3::splat(16.0))
-                                    .with_rotation(Quat::from_euler(
-                                        EulerRot::XZY,
-                                        0.0,
-                                        rotation_y,
-                                        0.0,
-                                    )),
-                                ..Default::default()
-                            },));
+                                parent.spawn((SceneBundle {
+                                    scene: game_assets.rock.clone(),
+                                    transform: Transform::from_translation(translation)
+                                        .with_scale(Vec3::splat(16.0))
+                                        .with_rotation(Quat::from_rotation_y(rotation_y)),
+                                    ..default()
+                                },));
+                            }
                         }
                     }
                 }
@@ -219,7 +203,7 @@ fn spawn_chunks_around_camera(
     let tile_size = chunk_manager.tile_size();
 
     for transform in q_camera.iter() {
-        let camera_chunk_pos = geometry::world_pos_to_chunk_coord(
+        let camera_chunk_pos = helpers::geometry::world_pos_to_chunk_coord(
             &transform.translation.xz(),
             &chunk_manager.size(),
             &chunk_manager.tile_size(),
@@ -240,7 +224,7 @@ fn spawn_chunks_around_camera(
                     commands.entity(chunk_entity).insert((
                         ChunkCoord(coord),
                         SpatialBundle {
-                            transform: geometry::get_chunk_coord_transform(
+                            transform: helpers::geometry::get_chunk_coord_transform(
                                 &coord,
                                 &chunk_size,
                                 &tile_size,
@@ -262,7 +246,7 @@ fn load_chunks_around_camera(
     mut q_chunks: Query<&mut Visibility, With<ChunkCoord>>,
 ) {
     for transform in camera_query.iter() {
-        let camera_chunk_pos = geometry::world_pos_to_chunk_coord(
+        let camera_chunk_pos = helpers::geometry::world_pos_to_chunk_coord(
             &transform.translation.xz(),
             &chunk_manager.size(),
             &chunk_manager.tile_size(),
@@ -296,7 +280,7 @@ fn unload_chunks_outside_camera(
     mut q_chunks: Query<&mut Visibility, With<ChunkCoord>>,
 ) {
     for transform in camera_query.iter() {
-        let camera_chunk_pos = geometry::world_pos_to_chunk_coord(
+        let camera_chunk_pos = helpers::geometry::world_pos_to_chunk_coord(
             &transform.translation.xz(),
             &chunk_manager.size(),
             &chunk_manager.tile_size(),

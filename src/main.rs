@@ -21,8 +21,8 @@ use debug::DebugModePlugin;
 //   - [x] implement additional noise layer that will be used for each resource type
 //   - [x] do actually nicer resource patches
 // - [x] fix the seed (again...): use a rng to generate seeds
-// - [ ] Refactor
-//   - [ ] PDD do it with builder pattern. Add padding for the resources
+// - [x] Refactor
+//   - [x] PDD do it with builder pattern
 // - [ ] Buildings
 //   - [ ] placing building on the map
 //   - [ ] with units that can get resources from the map
