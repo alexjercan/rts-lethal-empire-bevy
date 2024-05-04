@@ -1,8 +1,5 @@
 use bevy::prelude::*;
-use noise::{
-    utils::{NoiseMapBuilder, PlaneMapBuilder},
-    Fbm, MultiFractal, Perlin,
-};
+use noise::{utils::{NoiseMapBuilder, PlaneMapBuilder}, Fbm, MultiFractal, Perlin};
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(u32)]
@@ -24,8 +21,8 @@ impl TileKind {
     }
 }
 
-#[derive(Resource, Deref)]
-pub struct TerrainGenerator(pub Fbm<Perlin>);
+#[derive(Resource, Clone)]
+pub struct TerrainGenerator(Fbm<Perlin>);
 
 impl Default for TerrainGenerator {
     fn default() -> Self {

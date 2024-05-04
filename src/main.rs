@@ -20,7 +20,7 @@ use debug::DebugModePlugin;
 //   - [x] implement Poisson disc distribution for nicer resource patches in a tile
 //   - [x] implement additional noise layer that will be used for each resource type
 //   - [ ] do actually nicer resource patches
-// - [ ] Better Camera: Using PanOrbitCameraPlugin for now, but we will need to create our own camera
+// - [ ] fix the seed (again...): use a rng to generate seeds
 // - [ ] Buildings
 //   - [ ] placing building on the map
 //   - [ ] with units that can get resources from the map
@@ -29,6 +29,7 @@ use debug::DebugModePlugin;
 //   - [ ] need to pay quota of resources to the Empire over time
 //   - [ ] UI with the timer and quota needed and also how much we have
 //   - "TIME LEFT: 10:00" "QUOTA: 500/1000"
+// - [ ] Better Camera: Using PanOrbitCameraPlugin for now, but we will need to create our own camera
 // - [ ] plan for V3
 
 fn main() {

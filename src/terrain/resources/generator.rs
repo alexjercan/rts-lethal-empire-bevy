@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use noise::{
+    core::worley::{distance_functions, ReturnType},
     utils::{NoiseMapBuilder, PlaneMapBuilder},
-    Fbm, MultiFractal, Perlin,
+    Fbm, MultiFractal, Perlin, Worley,
 };
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -13,42 +14,54 @@ pub enum ResourceKind {
     Rock,
 }
 
-impl ResourceKind {
-    fn from_noise(noise: f64) -> Self {
-        match noise {
-            n if n < 0.3 => ResourceKind::None,
-            n if n < 0.5 => ResourceKind::Tree,
-            _ => ResourceKind::Rock,
-        }
-    }
+#[derive(Resource, Clone)]
+pub struct ResourceGenerator {
+    trees: Fbm<Perlin>,
 }
-
-#[derive(Resource, Deref)]
-pub struct ResourceGenerator(pub Fbm<Perlin>);
 
 impl Default for ResourceGenerator {
     fn default() -> Self {
-        ResourceGenerator(
-            Fbm::<Perlin>::new(0)
+        ResourceGenerator {
+            trees: Fbm::<Perlin>::new(0)
                 .set_frequency(1.0)
                 .set_persistence(0.5)
                 .set_lacunarity(2.0)
                 .set_octaves(14),
-        )
+        }
     }
 }
 
 impl ResourceGenerator {
     pub fn generate(&self, coord: IVec2, size: UVec2) -> Vec<ResourceKind> {
-        // TODO: implement a better way to generate resources
-        PlaneMapBuilder::new(self.0.clone())
+        let worley = Worley::new(0)
+            .set_distance_function(distance_functions::euclidean)
+            .set_return_type(ReturnType::Value)
+            .set_frequency(1.0);
+
+        let worley = PlaneMapBuilder::new(worley)
+            .set_size(size.x as usize, size.y as usize)
+            .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
+            .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
+            .build()
+            .into_iter();
+
+        return PlaneMapBuilder::new(self.trees.clone())
             .set_size(size.x as usize, size.y as usize)
             .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
             .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
             .build()
             .into_iter()
-            .map(|noise| ResourceKind::from_noise(noise))
-            .collect()
+            .zip(worley.clone())
+            .map(|(noise, worley)| {
+                if worley < 0.0 || noise < 0.3 {
+                    ResourceKind::None
+                } else if worley < 0.5 {
+                    ResourceKind::Rock
+                } else {
+                    ResourceKind::Tree
+                }
+            })
+            .collect();
     }
 }
 

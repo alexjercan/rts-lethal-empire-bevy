@@ -42,7 +42,7 @@ fn generate_terrain_task(
         debug!("Spawning tile mapping for chunk at {:?}", coord);
 
         let chunk_size = chunk_manager.size();
-        let terrain_generator = TerrainGenerator(terrain_generator.clone());
+        let terrain_generator = terrain_generator.clone();
 
         let task = thread_pool.spawn(async move {
             let span = info_span!("generate tile mapping").entered();

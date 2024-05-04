@@ -46,7 +46,7 @@ fn generate_resource_task(
         debug!("Spawning tile mapping for chunk at {:?}", coord);
 
         let chunk_size = chunk_manager.size();
-        let resource_generator = ResourceGenerator(resource_generator.clone());
+        let resource_generator = resource_generator.clone();
 
         let task = thread_pool.spawn(async move {
             let span = info_span!("generate resource mapping").entered();
