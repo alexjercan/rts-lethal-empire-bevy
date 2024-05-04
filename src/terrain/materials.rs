@@ -18,13 +18,13 @@ use bevy::{
 const MAX_TEXTURE_COUNT: usize = 4;
 
 #[derive(Asset, TypePath, Debug, Clone)]
-pub struct TilemapMaterial {
+pub struct TerrainMaterial {
     size: UVec2,
     textures: Vec<Handle<Image>>,
     mapping: Vec<u32>,
 }
 
-impl TilemapMaterial {
+impl TerrainMaterial {
     pub fn new(size: UVec2, textures: Vec<Handle<Image>>, mapping: Vec<u32>) -> Self {
         Self {
             size,
@@ -34,7 +34,7 @@ impl TilemapMaterial {
     }
 }
 
-impl AsBindGroup for TilemapMaterial {
+impl AsBindGroup for TerrainMaterial {
     type Data = ();
 
     fn as_bind_group(
@@ -63,7 +63,7 @@ impl AsBindGroup for TilemapMaterial {
         }
 
         let mapping = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("tilemap_material_mapping"),
+            label: Some("terrain_material_mapping"),
             contents: &self
                 .mapping
                 .iter()
@@ -73,13 +73,13 @@ impl AsBindGroup for TilemapMaterial {
         });
 
         let size = render_device.create_buffer_with_data(&BufferInitDescriptor {
-            label: Some("tilemap_material_size"),
+            label: Some("terrain_material_size"),
             contents: &bytemuck::bytes_of(&self.size).to_vec(),
             usage: BufferUsages::UNIFORM,
         });
 
         let bind_group = render_device.create_bind_group(
-            "tilemap_material_bind_group",
+            "terrain_material_bind_group",
             layout,
             &BindGroupEntries::sequential((
                 &textures[..],
@@ -158,8 +158,8 @@ impl AsBindGroup for TilemapMaterial {
     }
 }
 
-impl Material for TilemapMaterial {
+impl Material for TerrainMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/tilemap.wgsl".into()
+        "shaders/terrain.wgsl".into()
     }
 }

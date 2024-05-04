@@ -7,8 +7,7 @@ pub struct GameAssets {
         paths(
             "textures/tiles/water.png",
             "textures/tiles/grass.png",
-            "textures/tiles/forest.png",
-            "textures/tiles/rock.png"
+            "textures/tiles/barren.png",
         ),
         collection(typed)
     )]

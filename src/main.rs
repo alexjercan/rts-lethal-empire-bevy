@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use lethal_empire_bevy::{
-    assets::GameAssets, states::GameStates, tilemap::chunking::ChunkingPlugin,
+    assets::GameAssets, states::GameStates, terrain::TerrainPlugin,
 };
 
 #[cfg(feature = "debug")]
@@ -73,7 +73,7 @@ fn main() {
     }));
 
     app.add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(ChunkingPlugin)
+        .add_plugins(TerrainPlugin)
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)

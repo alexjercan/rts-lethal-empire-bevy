@@ -6,21 +6,20 @@ use noise::{
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(u32)]
-pub enum TerrainKind {
+pub enum TileKind {
     #[default]
     Water,
     Grass,
-    Forest,
-    Rock,
+    Barren
 }
 
-impl TerrainKind {
+impl TileKind {
     fn from_noise(noise: f64) -> Self {
+        // TODO: multiple noise passes to generate patches of grass and barren land
         match noise {
-            n if n < 0.0 => TerrainKind::Water,
-            n if n < 0.2 => TerrainKind::Grass,
-            n if n < 0.4 => TerrainKind::Forest,
-            _ => TerrainKind::Rock,
+            n if n < 0.0 => TileKind::Water,
+            n if n < 0.3 => TileKind::Grass,
+            _ => TileKind::Barren,
         }
     }
 }
@@ -41,14 +40,14 @@ impl Default for TerrainGenerator {
 }
 
 impl TerrainGenerator {
-    pub fn generate(&self, coord: IVec2, size: UVec2) -> Vec<TerrainKind> {
+    pub fn generate(&self, coord: IVec2, size: UVec2) -> Vec<TileKind> {
         PlaneMapBuilder::new(self.0.clone())
             .set_size(size.x as usize, size.y as usize)
             .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
             .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
             .build()
             .into_iter()
-            .map(|noise| TerrainKind::from_noise(noise))
+            .map(|noise| TileKind::from_noise(noise))
             .collect()
     }
 }
