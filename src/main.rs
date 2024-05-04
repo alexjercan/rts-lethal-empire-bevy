@@ -25,8 +25,9 @@ use debug::DebugModePlugin;
 //   - [x] PDD do it with builder pattern
 // - [ ] Buildings
 //   - [ ] placing building on the map
-//   - [ ] with units that can get resources from the map
+//   - [ ] with units that can get resources from the map (really basic they can go trough things)
 // - [ ] Pathfinding
+//   - [ ] units that can move on the map based on tiles
 // - [ ] Main Goal
 //   - [ ] need to pay quota of resources to the Empire over time
 //   - [ ] UI with the timer and quota needed and also how much we have

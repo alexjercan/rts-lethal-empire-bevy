@@ -21,7 +21,7 @@ const SPAWN_CHUNK_RADIUS: usize = 8;
 const LOAD_CHUNK_RADIUS: usize = 3;
 
 #[derive(Component, Deref)]
-struct ChunkCoord(IVec2);
+pub struct ChunkCoord(IVec2);
 
 #[derive(Component)]
 struct ChunkHandledTiles;
