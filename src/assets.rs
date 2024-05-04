@@ -14,6 +14,8 @@ pub struct GameAssets {
     pub tiles: Vec<Handle<Image>>,
     #[asset(path = "models/lowpoly_tree/tree.gltf#Scene0")]
     pub tree: Handle<Scene>,
+    #[asset(path = "models/lowpoly_tree/tree_snow.gltf#Scene0")]
+    pub tree_dead: Handle<Scene>,
     #[asset(path = "models/lowpoly_stone/stone_tallA.glb#Scene0")]
     pub rock: Handle<Scene>,
 }

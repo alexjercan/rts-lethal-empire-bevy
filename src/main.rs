@@ -15,12 +15,14 @@ use debug::DebugModePlugin;
 //   - [x] implement loading and unloading tiles when scrolling trough the map
 //   - [x] keep only 3x3 tilemaps around camera
 //   - [x] keep the rest of the chunks loaded and updated but not shown
-// - [ ] Resources
+// - [x] Resources
 //   - [x] use TileKind as the base of the tile: e.g Water, Land, BarrenLand
 //   - [x] implement Poisson disc distribution for nicer resource patches in a tile
 //   - [x] implement additional noise layer that will be used for each resource type
-//   - [ ] do actually nicer resource patches
-// - [ ] fix the seed (again...): use a rng to generate seeds
+//   - [x] do actually nicer resource patches
+// - [x] fix the seed (again...): use a rng to generate seeds
+// - [ ] Refactor
+//   - [ ] PDD do it with builder pattern. Add padding for the resources
 // - [ ] Buildings
 //   - [ ] placing building on the map
 //   - [ ] with units that can get resources from the map

@@ -8,7 +8,7 @@ use self::{
     helpers::{geometry, hash::seed_from_coord},
     materials::TerrainMaterial,
     resources::{ResourceKind, ResourceMapping, ResourcePlugin},
-    tiles::{TileMapping, TilesPlugin},
+    tiles::{TileKind, TileMapping, TilesPlugin},
 };
 
 mod resources;
@@ -30,6 +30,9 @@ struct ChunkHandledTiles;
 #[derive(Component)]
 struct ChunkHandledResources;
 
+#[derive(Resource, Deref)]
+struct TerrainSeed(u64);
+
 pub struct TerrainPlugin {
     seed: u64,
 }
@@ -48,6 +51,7 @@ impl Plugin for TerrainPlugin {
             .add_plugins(TilesPlugin::new(seeder.next_u64()))
             .add_plugins(ResourcePlugin::new(seeder.next_u64()))
             .init_resource::<ChunkManager>()
+            .insert_resource(TerrainSeed(self.seed))
             .add_systems(
                 Update,
                 (
@@ -95,31 +99,38 @@ fn handle_chunks_resources(
     mut commands: Commands,
     chunk_manager: Res<ChunkManager>,
     q_chunks: Query<
-        (Entity, &TileMapping, &ResourceMapping),
-        (With<ChunkCoord>, Without<ChunkHandledResources>),
+        (Entity, &ChunkCoord, &TileMapping, &ResourceMapping),
+        Without<ChunkHandledResources>,
     >,
     game_assets: Res<GameAssets>,
+    terrain_seed: Res<TerrainSeed>,
 ) {
     let chunk_size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
 
-    for (entity, tile_mapping, resource_mapping) in q_chunks.iter() {
+    for (entity, chunk_coord, tile_mapping, resource_mapping) in q_chunks.iter() {
         commands
             .entity(entity)
             .insert(ChunkHandledResources)
             .with_children(|parent| {
-                // TODO: nicer assets based on tile kind
-                for (index, (resource, _tile)) in
+                for (index, (resource, tile)) in
                     resource_mapping.iter().zip(tile_mapping.iter()).enumerate()
                 {
                     let tile_coord =
                         UVec2::new(index as u32 % chunk_size.x, index as u32 / chunk_size.x);
-                    match resource {
-                        ResourceKind::None => (),
-                        ResourceKind::Tree => {
-                            // TODO: seed
-                            let points = PoissonDiscSampler::new(seed_from_coord(0, &tile_coord))
-                                .sample(12.0, tile_size, 30);
+                    let global_coord = **chunk_coord * chunk_size.as_ivec2()
+                        + tile_coord.as_ivec2()
+                        - chunk_size.as_ivec2() / 2;
+
+                    match (resource, tile) {
+                        (_, TileKind::Water) => (),
+                        (ResourceKind::None, _) => (),
+                        (ResourceKind::Tree, TileKind::Grass) => {
+                            let points = PoissonDiscSampler::new(seed_from_coord(
+                                **terrain_seed,
+                                &global_coord,
+                            ))
+                            .sample(12.0, tile_size, 30);
                             let translation = helpers::geometry::get_tile_coord_translation(
                                 &tile_coord,
                                 &chunk_size,
@@ -139,7 +150,12 @@ fn handle_chunks_resources(
                                 },));
                             }
                         }
-                        ResourceKind::Rock => {
+                        (ResourceKind::Tree, TileKind::Barren) => {
+                            let points = PoissonDiscSampler::new(seed_from_coord(
+                                **terrain_seed,
+                                &global_coord,
+                            ))
+                            .sample(14.0, tile_size, 30);
                             let translation = helpers::geometry::get_tile_coord_translation(
                                 &tile_coord,
                                 &chunk_size,
@@ -147,10 +163,44 @@ fn handle_chunks_resources(
                                 0.0,
                             );
 
+                            for point in points {
+                                let translation =
+                                    translation + (point - tile_size / 2.0).extend(0.0).xzy();
+
+                                parent.spawn((SceneBundle {
+                                    scene: game_assets.tree_dead.clone(),
+                                    transform: Transform::from_translation(translation)
+                                        .with_scale(Vec3::splat(4.0)),
+                                    ..Default::default()
+                                },));
+                            }
+                        }
+                        (ResourceKind::Rock, _) => {
+                            let translation = helpers::geometry::get_tile_coord_translation(
+                                &tile_coord,
+                                &chunk_size,
+                                &tile_size,
+                                0.0,
+                            );
+
+                            let mut rng = StdRng::seed_from_u64(helpers::hash::seed_from_coord(
+                                **terrain_seed,
+                                &global_coord,
+                            ));
+                            let rotation_y = rng.next_u32() as f32 / std::u32::MAX as f32
+                                * 2.0
+                                * std::f32::consts::PI;
+
                             parent.spawn((SceneBundle {
                                 scene: game_assets.rock.clone(),
                                 transform: Transform::from_translation(translation)
-                                    .with_scale(Vec3::splat(8.0)),
+                                    .with_scale(Vec3::splat(16.0))
+                                    .with_rotation(Quat::from_euler(
+                                        EulerRot::XZY,
+                                        0.0,
+                                        rotation_y,
+                                        0.0,
+                                    )),
                                 ..Default::default()
                             },));
                         }

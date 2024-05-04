@@ -6,7 +6,8 @@ use bevy::{
 
 use crate::states::GameStates;
 
-use self::generator::{TerrainGenerator, TileKind};
+use self::generator::TerrainGenerator;
+pub use self::generator::TileKind;
 
 use super::{chunking::ChunkManager, ChunkCoord};
 
