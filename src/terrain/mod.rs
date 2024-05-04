@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 
 use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::GameStates};
 
@@ -29,13 +30,23 @@ struct ChunkHandledTiles;
 #[derive(Component)]
 struct ChunkHandledResources;
 
-pub struct TerrainPlugin;
+pub struct TerrainPlugin {
+    seed: u64,
+}
+
+impl TerrainPlugin {
+    pub fn new(seed: u64) -> Self {
+        TerrainPlugin { seed }
+    }
+}
 
 impl Plugin for TerrainPlugin {
     fn build(&self, app: &mut App) {
+        let mut seeder = StdRng::seed_from_u64(self.seed);
+
         app.add_plugins(MaterialPlugin::<TerrainMaterial>::default())
-            .add_plugins(TilesPlugin)
-            .add_plugins(ResourcePlugin)
+            .add_plugins(TilesPlugin::new(seeder.next_u64()))
+            .add_plugins(ResourcePlugin::new(seeder.next_u64()))
             .init_resource::<ChunkManager>()
             .add_systems(
                 Update,

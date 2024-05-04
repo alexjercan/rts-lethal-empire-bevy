@@ -48,7 +48,7 @@ fn main() {
     }));
 
     app.add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(TerrainPlugin)
+        .add_plugins(TerrainPlugin::new(0))
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)

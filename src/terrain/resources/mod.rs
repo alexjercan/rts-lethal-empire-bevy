@@ -19,15 +19,24 @@ struct ComputeResourceMapping(Task<CommandQueue>);
 #[derive(Component, Deref)]
 pub struct ResourceMapping(Vec<ResourceKind>);
 
-pub struct ResourcePlugin;
+pub struct ResourcePlugin {
+    seed: u64,
+}
+
+impl ResourcePlugin {
+    pub fn new(seed: u64) -> Self {
+        ResourcePlugin { seed }
+    }
+}
 
 impl Plugin for ResourcePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ResourceGenerator>().add_systems(
-            Update,
-            (generate_resource_task, handle_generate_resource_task)
-                .run_if(in_state(GameStates::Playing)),
-        );
+        app.insert_resource(ResourceGenerator::new(self.seed))
+            .add_systems(
+                Update,
+                (generate_resource_task, handle_generate_resource_task)
+                    .run_if(in_state(GameStates::Playing)),
+            );
     }
 }
 

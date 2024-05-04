@@ -16,42 +16,42 @@ pub enum ResourceKind {
 
 #[derive(Resource, Clone)]
 pub struct ResourceGenerator {
-    trees: Fbm<Perlin>,
+    seed: u64,
 }
 
-impl Default for ResourceGenerator {
-    fn default() -> Self {
-        ResourceGenerator {
-            trees: Fbm::<Perlin>::new(0)
-                .set_frequency(1.0)
-                .set_persistence(0.5)
-                .set_lacunarity(2.0)
-                .set_octaves(14),
-        }
+impl ResourceGenerator {
+    pub fn new(seed: u64) -> Self {
+        ResourceGenerator { seed }
     }
 }
 
 impl ResourceGenerator {
     pub fn generate(&self, coord: IVec2, size: UVec2) -> Vec<ResourceKind> {
-        let worley = Worley::new(0)
+        let perlin = Fbm::<Perlin>::new(self.seed as u32)
+            .set_frequency(1.0)
+            .set_persistence(0.5)
+            .set_lacunarity(2.0)
+            .set_octaves(14);
+
+        let worley = Worley::new(self.seed as u32)
             .set_distance_function(distance_functions::euclidean)
             .set_return_type(ReturnType::Value)
             .set_frequency(1.0);
 
-        let worley = PlaneMapBuilder::new(worley)
-            .set_size(size.x as usize, size.y as usize)
-            .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
-            .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
-            .build()
-            .into_iter();
-
-        return PlaneMapBuilder::new(self.trees.clone())
+        return PlaneMapBuilder::new(perlin)
             .set_size(size.x as usize, size.y as usize)
             .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
             .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
             .build()
             .into_iter()
-            .zip(worley.clone())
+            .zip(
+                PlaneMapBuilder::new(worley)
+                    .set_size(size.x as usize, size.y as usize)
+                    .set_x_bounds((coord.x as f64) * 1.0 - 0.5, (coord.x as f64) * 1.0 + 0.5)
+                    .set_y_bounds((coord.y as f64) * 1.0 - 0.5, (coord.y as f64) * 1.0 + 0.5)
+                    .build()
+                    .into_iter(),
+            )
             .map(|(noise, worley)| {
                 if worley < 0.0 || noise < 0.3 {
                     ResourceKind::None
@@ -73,7 +73,7 @@ mod tests {
 
     #[bench]
     fn bench_terrain_generator(b: &mut Bencher) {
-        let generator = ResourceGenerator::default();
+        let generator = ResourceGenerator::new(0);
 
         b.iter(|| generator.generate(IVec2::ZERO, UVec2::splat(128)));
     }

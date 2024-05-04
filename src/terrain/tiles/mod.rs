@@ -18,15 +18,24 @@ struct ComputeTileMapping(Task<CommandQueue>);
 #[derive(Component, Deref)]
 pub struct TileMapping(Vec<TileKind>);
 
-pub struct TilesPlugin;
+pub struct TilesPlugin {
+    seed: u64,
+}
+
+impl TilesPlugin {
+    pub fn new(seed: u64) -> Self {
+        TilesPlugin { seed }
+    }
+}
 
 impl Plugin for TilesPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TerrainGenerator>().add_systems(
-            Update,
-            (generate_terrain_task, handle_generate_terrain_task)
-                .run_if(in_state(GameStates::Playing)),
-        );
+        app.insert_resource(TerrainGenerator::new(self.seed))
+            .add_systems(
+                Update,
+                (generate_terrain_task, handle_generate_terrain_task)
+                    .run_if(in_state(GameStates::Playing)),
+            );
     }
 }
 
