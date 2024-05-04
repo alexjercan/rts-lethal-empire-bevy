@@ -10,7 +10,7 @@ pub enum TileKind {
     #[default]
     Water,
     Grass,
-    Barren
+    Barren,
 }
 
 impl TileKind {

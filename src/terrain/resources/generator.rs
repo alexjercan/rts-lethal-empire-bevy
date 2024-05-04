@@ -10,7 +10,7 @@ pub enum ResourceKind {
     #[default]
     None,
     Tree,
-    Rock
+    Rock,
 }
 
 impl ResourceKind {

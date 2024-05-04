@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 
-use crate::{assets::GameAssets, states::GameStates};
+use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::GameStates};
 
 use self::{
     chunking::ChunkManager,
-    helpers::geometry,
+    helpers::{geometry, hash::seed_from_coord},
     materials::TerrainMaterial,
     resources::{ResourceKind, ResourceMapping, ResourcePlugin},
     tiles::{TileMapping, TilesPlugin},
@@ -106,28 +106,40 @@ fn handle_chunks_resources(
                     match resource {
                         ResourceKind::None => (),
                         ResourceKind::Tree => {
-                            parent.spawn((SceneBundle {
-                                scene: game_assets.tree.clone(),
-                                transform: helpers::geometry::get_tile_coord_transform(
-                                    &tile_coord,
-                                    &chunk_size,
-                                    &tile_size,
-                                    0.0,
-                                )
-                                .with_scale(Vec3::splat(4.0)),
-                                ..Default::default()
-                            },));
+                            // TODO: seed
+                            let points = PoissonDiscSampler::new(seed_from_coord(0, &tile_coord))
+                                .sample(12.0, tile_size, 30);
+                            let translation = helpers::geometry::get_tile_coord_translation(
+                                &tile_coord,
+                                &chunk_size,
+                                &tile_size,
+                                0.0,
+                            );
+
+                            for point in points {
+                                let translation =
+                                    translation + (point - tile_size / 2.0).extend(0.0).xzy();
+
+                                parent.spawn((SceneBundle {
+                                    scene: game_assets.tree.clone(),
+                                    transform: Transform::from_translation(translation)
+                                        .with_scale(Vec3::splat(4.0)),
+                                    ..Default::default()
+                                },));
+                            }
                         }
                         ResourceKind::Rock => {
+                            let translation = helpers::geometry::get_tile_coord_translation(
+                                &tile_coord,
+                                &chunk_size,
+                                &tile_size,
+                                0.0,
+                            );
+
                             parent.spawn((SceneBundle {
                                 scene: game_assets.rock.clone(),
-                                transform: helpers::geometry::get_tile_coord_transform(
-                                    &tile_coord,
-                                    &chunk_size,
-                                    &tile_size,
-                                    0.0,
-                                )
-                                .with_scale(Vec3::splat(8.0)),
+                                transform: Transform::from_translation(translation)
+                                    .with_scale(Vec3::splat(8.0)),
                                 ..Default::default()
                             },));
                         }

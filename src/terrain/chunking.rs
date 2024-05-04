@@ -42,7 +42,11 @@ impl ChunkManager {
     }
 
     pub fn out_range(&self, coord: &IVec2, radius: i32) -> Vec<IVec2> {
-        self.loaded.iter().filter(|c| (*coord - **c).abs().max_element() > radius).cloned().collect()
+        self.loaded
+            .iter()
+            .filter(|c| (*coord - **c).abs().max_element() > radius)
+            .cloned()
+            .collect()
     }
 
     pub fn insert(&mut self, coord: IVec2, entity: Entity) {

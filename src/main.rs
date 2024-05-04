@@ -1,9 +1,7 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use lethal_empire_bevy::{
-    assets::GameAssets, states::GameStates, terrain::TerrainPlugin,
-};
+use lethal_empire_bevy::{assets::GameAssets, states::GameStates, terrain::TerrainPlugin};
 
 #[cfg(feature = "debug")]
 mod debug;
