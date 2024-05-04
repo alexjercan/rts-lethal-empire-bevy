@@ -24,7 +24,10 @@ const LOAD_CHUNK_RADIUS: usize = 3;
 struct ChunkCoord(IVec2);
 
 #[derive(Component)]
-struct ChunkHandled;
+struct ChunkHandledTiles;
+
+#[derive(Component)]
+struct ChunkHandledResources;
 
 pub struct TerrainPlugin;
 
@@ -40,17 +43,18 @@ impl Plugin for TerrainPlugin {
                     spawn_chunks_around_camera,
                     load_chunks_around_camera,
                     unload_chunks_outside_camera,
-                    handle_chunks,
+                    handle_chunks_tiles,
+                    handle_chunks_resources,
                 )
                     .run_if(in_state(GameStates::Playing)),
             );
     }
 }
 
-fn handle_chunks(
+fn handle_chunks_tiles(
     mut commands: Commands,
     chunk_manager: Res<ChunkManager>,
-    q_chunks: Query<(Entity, &ChunkCoord, &TileMapping, &ResourceMapping), Without<ChunkHandled>>,
+    q_chunks: Query<(Entity, &TileMapping), (With<ChunkCoord>, Without<ChunkHandledTiles>)>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<TerrainMaterial>>,
     game_assets: Res<GameAssets>,
@@ -58,7 +62,7 @@ fn handle_chunks(
     let chunk_size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
 
-    for (entity, _coord, tile_mapping, resource_mapping) in q_chunks.iter() {
+    for (entity, tile_mapping) in q_chunks.iter() {
         let chunk_mesh = meshes.add(Plane3d::default().mesh().size(
             tile_size.x * chunk_size.x as f32,
             tile_size.y * chunk_size.y as f32,
@@ -72,13 +76,33 @@ fn handle_chunks(
 
         commands
             .entity(entity)
-            .insert((chunk_mesh, chunk_material, ChunkHandled))
+            .insert((chunk_mesh, chunk_material, ChunkHandledTiles));
+    }
+}
+
+fn handle_chunks_resources(
+    mut commands: Commands,
+    chunk_manager: Res<ChunkManager>,
+    q_chunks: Query<
+        (Entity, &TileMapping, &ResourceMapping),
+        (With<ChunkCoord>, Without<ChunkHandledResources>),
+    >,
+    game_assets: Res<GameAssets>,
+) {
+    let chunk_size = chunk_manager.size();
+    let tile_size = chunk_manager.tile_size();
+
+    for (entity, tile_mapping, resource_mapping) in q_chunks.iter() {
+        commands
+            .entity(entity)
+            .insert(ChunkHandledResources)
             .with_children(|parent| {
-                for (index, resource) in resource_mapping.iter().enumerate() {
-                    let tile_coord = UVec2::new(
-                        index as u32 % chunk_size.x,
-                        index as u32 / chunk_size.x,
-                    );
+                // TODO: nicer assets based on tile kind
+                for (index, (resource, _tile)) in
+                    resource_mapping.iter().zip(tile_mapping.iter()).enumerate()
+                {
+                    let tile_coord =
+                        UVec2::new(index as u32 % chunk_size.x, index as u32 / chunk_size.x);
                     match resource {
                         ResourceKind::None => (),
                         ResourceKind::Tree => {
