@@ -10,6 +10,9 @@ pub mod helpers;
 pub mod states;
 pub mod terrain;
 
+#[cfg(feature = "debug")]
+pub mod debug;
+
 #[derive(Resource, Default, Debug)]
 pub enum ToolMode {
     #[default]

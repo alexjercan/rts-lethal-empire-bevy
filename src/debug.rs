@@ -1,15 +1,14 @@
 use std::f32::consts::FRAC_PI_2;
 
-use bevy::prelude::*;
-use lethal_empire_bevy::{
+use crate::{
     helpers,
+    states::GameStates,
     terrain::{ChunkCoord, ChunkManager},
 };
-
-use crate::GameStates;
+use bevy::prelude::*;
 
 #[derive(Debug, Default)]
-pub(super) struct DebugModePlugin;
+pub struct DebugModePlugin;
 
 impl Plugin for DebugModePlugin {
     fn build(&self, app: &mut App) {

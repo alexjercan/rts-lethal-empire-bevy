@@ -7,10 +7,7 @@ use lethal_empire_bevy::{
 };
 
 #[cfg(feature = "debug")]
-mod debug;
-
-#[cfg(feature = "debug")]
-use debug::DebugModePlugin;
+use lethal_empire_bevy::debug::DebugModePlugin;
 
 // # Version 0.2
 // - [x] Tile based map V2
