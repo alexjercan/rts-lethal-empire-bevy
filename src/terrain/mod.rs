@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 
-use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::GameStates, Obstacle};
+use crate::{assets::GameAssets, helpers, sampling::disc::PoissonDiscSampler, states::GameStates, Obstacle};
 
 use self::{
     materials::TerrainMaterial,
@@ -13,7 +13,6 @@ pub use self::tiles::{TileKind, TileMapping};
 pub use self::chunking::ChunkManager;
 
 mod chunking;
-pub mod helpers;
 mod materials;
 mod resources;
 mod tiles;

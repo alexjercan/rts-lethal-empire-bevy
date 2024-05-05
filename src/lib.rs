@@ -9,6 +9,7 @@ pub mod sampling;
 pub mod states;
 pub mod terrain;
 pub mod building;
+pub mod helpers;
 
 #[derive(Resource, Default, Debug)]
 pub enum ToolMode {

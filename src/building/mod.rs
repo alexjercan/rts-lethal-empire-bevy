@@ -3,10 +3,7 @@ use std::{collections::HashSet, f32::consts::FRAC_PI_2};
 use bevy::prelude::*;
 
 use crate::{
-    assets::GameAssets,
-    states::GameStates,
-    terrain::{self, ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping},
-    Obstacle, ToolMode,
+    assets::GameAssets, helpers, states::GameStates, terrain::{ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping}, Obstacle, ToolMode
 };
 
 #[derive(Component)]
@@ -149,7 +146,7 @@ fn follow_building_tool(
 
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
-    let tile_pos = terrain::helpers::geometry::snap_to_tile(&point.xz(), &size, &tile_size);
+    let tile_pos = helpers::geometry::snap_to_tile(&point.xz(), &size, &tile_size);
 
     building_tool_transform.translation = tile_pos.extend(0.0).xzy();
 }
@@ -174,15 +171,15 @@ fn handle_building_tool(
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
     let chunk_coord =
-        terrain::helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
+        helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
     let Some(chunk) = chunk_manager.get(&chunk_coord) else {
         return;
     };
 
     let tile_coord =
-        terrain::helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
+        helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
     let tile_pos =
-        terrain::helpers::geometry::tile_coord_to_world_off(&tile_coord, &size, &tile_size);
+        helpers::geometry::tile_coord_to_world_off(&tile_coord, &size, &tile_size);
     if mouse_button_input.just_pressed(MouseButton::Left) {
         let scene = game_assets.buildings[&*building_kind].clone();
 
@@ -215,9 +212,9 @@ fn check_building_tool_valid(
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
     let chunk_coord =
-        terrain::helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
+        helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
     let tile_coord =
-        terrain::helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
+        helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
 
     println!("{:?} in {:?}", tile_coord, chunk_coord);
 
@@ -233,7 +230,7 @@ fn check_building_tool_valid(
         .filter_map(|child| q_tiles.get(*child).ok().map(|x| **x))
         .collect::<HashSet<UVec2>>();
 
-    let index = terrain::helpers::geometry::tile_coord_to_index(&tile_coord, &size);
+    let index = helpers::geometry::tile_coord_to_index(&tile_coord, &size);
     let tile_kind = mapping[index];
 
     **building_valid = !obstacles.contains(&tile_coord) && !matches!(tile_kind, TileKind::Water);
