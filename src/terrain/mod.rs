@@ -25,7 +25,7 @@ const LOAD_CHUNK_RADIUS: usize = 3;
 pub struct ChunkCoord(IVec2);
 
 #[derive(Component, Deref)]
-pub struct TileCoord(UVec2);
+pub struct TileCoord(pub UVec2);
 
 #[derive(Component)]
 struct ChunkHandledTiles;

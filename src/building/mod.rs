@@ -189,6 +189,8 @@ fn handle_building_tool(
         commands.entity(*chunk).with_children(|parent| {
             parent.spawn((
                 Building,
+                TileCoord(tile_coord),
+                Obstacle,
                 SceneBundle {
                     scene,
                     transform: tool_transform.with_translation(tile_pos.extend(0.0).xzy()),
