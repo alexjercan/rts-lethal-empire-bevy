@@ -6,9 +6,10 @@ use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::Game
 use self::{
     materials::TerrainMaterial,
     resources::{ResourceKind, ResourceMapping, ResourcePlugin},
-    tiles::{TileKind, TileMapping, TilesPlugin},
+    tiles::TilesPlugin,
 };
 
+pub use self::tiles::{TileKind, TileMapping};
 pub use self::chunking::ChunkManager;
 
 mod chunking;

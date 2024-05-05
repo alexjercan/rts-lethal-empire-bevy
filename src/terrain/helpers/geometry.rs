@@ -92,6 +92,12 @@ pub fn index_to_tile_coord(index: usize, size: &UVec2) -> UVec2 {
     return UVec2::new(x as u32, y as u32);
 }
 
+pub fn tile_coord_to_index(tile_coord: &UVec2, size: &UVec2) -> usize {
+    let index = tile_coord.y * size.x + tile_coord.x;
+
+    return index as usize;
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     assets::GameAssets,
     states::GameStates,
-    terrain::{self, ChunkCoord, ChunkManager, TileCoord},
+    terrain::{self, ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping},
     Obstacle, ToolMode,
 };
 
@@ -201,7 +201,7 @@ fn handle_building_tool(
 
 fn check_building_tool_valid(
     chunk_manager: Res<ChunkManager>,
-    q_chunks: Query<&Children, With<ChunkCoord>>,
+    q_chunks: Query<(&Children, &TileMapping), With<ChunkCoord>>,
     q_tiles: Query<&TileCoord, With<Obstacle>>,
     mut q_tool: Query<(&mut BuildingToolValid, &Transform), With<BuildingTool>>,
 ) {
@@ -222,7 +222,7 @@ fn check_building_tool_valid(
     let Some(chunk) = chunk_manager.get(&chunk_coord) else {
         return;
     };
-    let Ok(children) = q_chunks.get(*chunk) else {
+    let Ok((children, mapping)) = q_chunks.get(*chunk) else {
         return;
     };
 
@@ -231,7 +231,10 @@ fn check_building_tool_valid(
         .filter_map(|child| q_tiles.get(*child).ok().map(|x| **x))
         .collect::<HashSet<UVec2>>();
 
-    **building_valid = !obstacles.contains(&tile_coord);
+    let index = terrain::helpers::geometry::tile_coord_to_index(&tile_coord, &size);
+    let tile_kind = mapping[index];
+
+    **building_valid = !obstacles.contains(&tile_coord) && !matches!(tile_kind, TileKind::Water);
 }
 
 fn screen_to_world(
