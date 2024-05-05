@@ -19,8 +19,7 @@ cargo run
 
 ## Plans
 
-- [ ] Implement tile based resource generation on top of perlin noise (see wave function collapse + poisson disc sampling)
 - [ ] Add the paying quota system
-- [ ] Add more buildings for each resource type (lumberjack, stone quarry)
+- [x] Add more buildings for each resource type (lumberjack, stone quarry)
 - [ ] Workers that bring the resources from mines to outposts (pathfinding)
 - [ ] War units and buildings that can be used to defend the base and attack enemies

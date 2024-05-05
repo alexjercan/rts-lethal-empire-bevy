@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    assets::GameAssets,
     states::GameStates,
     terrain::{self, ChunkManager},
     ToolMode,
@@ -12,7 +13,7 @@ pub struct BuildingTool;
 #[derive(Component, Deref)]
 struct GhostBuilding(BuildingKind);
 
-#[derive(Resource, Default, PartialEq, Eq)]
+#[derive(Resource, Default, PartialEq, Eq, Clone, Hash)]
 pub enum BuildingKind {
     #[default]
     LumberMill,
@@ -45,11 +46,7 @@ fn run_if_build_mode(tool_mode: Res<ToolMode>) -> bool {
     matches!(*tool_mode, ToolMode::Build)
 }
 
-fn setup_building_tool(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>) {
     commands
         .spawn((
             BuildingTool,
@@ -59,27 +56,17 @@ fn setup_building_tool(
             },
         ))
         .with_children(|parent| {
-            parent.spawn((
-                GhostBuilding(BuildingKind::LumberMill),
-                meshes.add(Cuboid::new(16.0, 16.0, 16.0)),
-                materials.add(Color::TOMATO),
-                SpatialBundle {
-                    transform: Transform::from_xyz(0.0, 8.0, 0.0),
-                    visibility: Visibility::Hidden,
-                    ..default()
-                },
-            ));
-
-            parent.spawn((
-                GhostBuilding(BuildingKind::StoneQuarry),
-                meshes.add(Cuboid::new(16.0, 16.0, 16.0)),
-                materials.add(Color::TURQUOISE),
-                SpatialBundle {
-                    transform: Transform::from_xyz(0.0, 8.0, 0.0),
-                    visibility: Visibility::Hidden,
-                    ..default()
-                },
-            ));
+            for (kind, scene) in &game_assets.buildings {
+                parent.spawn((
+                    GhostBuilding(kind.clone()),
+                    SceneBundle {
+                        scene: scene.clone(),
+                        transform: Transform::from_scale(Vec3::splat(16.0)),
+                        visibility: Visibility::Hidden,
+                        ..default()
+                    },
+                ));
+            }
         });
 }
 
@@ -96,19 +83,6 @@ fn update_ghost_building(
             }
         }
     }
-}
-
-fn screen_to_world(
-    camera: &Camera,
-    camera_transform: &GlobalTransform,
-    window: &Window,
-) -> Option<Vec3> {
-    let cursor_position = window.cursor_position()?;
-    let ray = camera.viewport_to_world(camera_transform, cursor_position)?;
-    let distance = ray.intersect_plane(Vec3::ZERO, Plane3d::new(Vec3::Y))?;
-    let point = ray.get_point(distance);
-
-    Some(point)
 }
 
 fn follow_building_tool(
@@ -148,9 +122,8 @@ fn handle_building_tool(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     windows: Query<&Window>,
     building_kind: Res<BuildingKind>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     chunk_manager: Res<ChunkManager>,
+    game_assets: Res<GameAssets>,
 ) {
     let Ok((camera, camera_transform)) = q_camera.get_single() else {
         return;
@@ -173,31 +146,28 @@ fn handle_building_tool(
     let tile_pos =
         terrain::helpers::geometry::tile_coord_to_world_off(&tile_coord, &size, &tile_size);
     if mouse_button_input.just_pressed(MouseButton::Left) {
-        match *building_kind {
-            BuildingKind::LumberMill => {
-                commands.entity(*chunk).with_children(|parent| {
-                    parent.spawn((
-                        meshes.add(Cuboid::new(16.0, 16.0, 16.0)),
-                        materials.add(Color::TOMATO),
-                        SpatialBundle {
-                            transform: Transform::from_translation(tile_pos.extend(8.0).xzy()),
-                            ..default()
-                        },
-                    ));
-                });
-            }
-            BuildingKind::StoneQuarry => {
-                commands.entity(*chunk).with_children(|parent| {
-                    parent.spawn((
-                        meshes.add(Cuboid::new(16.0, 16.0, 16.0)),
-                        materials.add(Color::TURQUOISE),
-                        SpatialBundle {
-                            transform: Transform::from_translation(tile_pos.extend(8.0).xzy()),
-                            ..default()
-                        },
-                    ));
-                });
-            }
-        }
+        let scene = game_assets.buildings[&*building_kind].clone();
+
+        commands.entity(*chunk).with_children(|parent| {
+            parent.spawn(SceneBundle {
+                scene,
+                transform: Transform::from_translation(tile_pos.extend(0.0).xzy())
+                    .with_scale(Vec3::splat(16.0)),
+                ..default()
+            });
+        });
     }
+}
+
+fn screen_to_world(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    window: &Window,
+) -> Option<Vec3> {
+    let cursor_position = window.cursor_position()?;
+    let ray = camera.viewport_to_world(camera_transform, cursor_position)?;
+    let distance = ray.intersect_plane(Vec3::ZERO, Plane3d::new(Vec3::Y))?;
+    let point = ray.get_point(distance);
+
+    Some(point)
 }
