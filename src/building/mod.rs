@@ -90,8 +90,6 @@ fn update_ghost_building(
     };
 
     if tool_mode.is_changed() || component.is_changed() {
-        println!("Building kind changed: {:?}", *building_kind);
-
         for (kind, mut visibility) in q_ghost.iter_mut() {
             *visibility = match *tool_mode {
                 ToolMode::Build if *building_kind == *kind => Visibility::Visible,
