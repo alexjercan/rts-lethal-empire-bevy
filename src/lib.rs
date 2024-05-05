@@ -7,7 +7,6 @@ use bevy::prelude::*;
 pub mod assets;
 pub mod building;
 pub mod helpers;
-pub mod sampling;
 pub mod states;
 pub mod terrain;
 

@@ -1,6 +1,6 @@
 use rand::{rngs::StdRng, SeedableRng};
 
-use crate::{assets::GameAssets, helpers, sampling::disc::PoissonDiscSampler, Obstacle};
+use crate::{assets::GameAssets, helpers, helpers::sampling::disc::PoissonDiscSampler, Obstacle};
 
 use bevy::{
     ecs::system::CommandQueue,
