@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 
-use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::GameStates};
+use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::GameStates, Obstacle};
 
 use self::{
     materials::TerrainMaterial,
@@ -11,17 +11,20 @@ use self::{
 
 pub use self::chunking::ChunkManager;
 
-mod resources;
-mod tiles;
 mod chunking;
 pub mod helpers;
 mod materials;
+mod resources;
+mod tiles;
 
 const SPAWN_CHUNK_RADIUS: usize = 8;
 const LOAD_CHUNK_RADIUS: usize = 3;
 
 #[derive(Component, Deref)]
 pub struct ChunkCoord(IVec2);
+
+#[derive(Component, Deref)]
+pub struct TileCoord(UVec2);
 
 #[derive(Component)]
 struct ChunkHandledTiles;
@@ -141,12 +144,16 @@ fn handle_chunks_resources(
                                 let translation =
                                     (tile_offset + point - tile_size / 2.0).extend(0.0).xzy();
 
-                                parent.spawn((SceneBundle {
-                                    scene: game_assets.tree.clone(),
-                                    transform: Transform::from_translation(translation)
-                                        .with_scale(Vec3::splat(4.0)),
-                                    ..default()
-                                },));
+                                parent.spawn((
+                                    TileCoord(tile_coord),
+                                    Obstacle,
+                                    SceneBundle {
+                                        scene: game_assets.tree.clone(),
+                                        transform: Transform::from_translation(translation)
+                                            .with_scale(Vec3::splat(4.0)),
+                                        ..default()
+                                    },
+                                ));
                             }
                         }
                         (ResourceKind::Tree, TileKind::Barren) => {
@@ -159,12 +166,16 @@ fn handle_chunks_resources(
                                 let translation =
                                     (tile_offset + point - tile_size / 2.0).extend(0.0).xzy();
 
-                                parent.spawn((SceneBundle {
-                                    scene: game_assets.tree_dead.clone(),
-                                    transform: Transform::from_translation(translation)
-                                        .with_scale(Vec3::splat(4.0)),
-                                    ..default()
-                                },));
+                                parent.spawn((
+                                    TileCoord(tile_coord),
+                                    Obstacle,
+                                    SceneBundle {
+                                        scene: game_assets.tree_dead.clone(),
+                                        transform: Transform::from_translation(translation)
+                                            .with_scale(Vec3::splat(4.0)),
+                                        ..default()
+                                    },
+                                ));
                             }
                         }
                         (ResourceKind::Rock, _) => {
@@ -179,13 +190,17 @@ fn handle_chunks_resources(
                                 let translation =
                                     (tile_offset + point - tile_size / 2.0).extend(0.0).xzy();
 
-                                parent.spawn((SceneBundle {
-                                    scene: game_assets.rock.clone(),
-                                    transform: Transform::from_translation(translation)
-                                        .with_scale(Vec3::splat(16.0))
-                                        .with_rotation(Quat::from_rotation_y(rotation_y)),
-                                    ..default()
-                                },));
+                                parent.spawn((
+                                    TileCoord(tile_coord),
+                                    Obstacle,
+                                    SceneBundle {
+                                        scene: game_assets.rock.clone(),
+                                        transform: Transform::from_translation(translation)
+                                            .with_scale(Vec3::splat(16.0))
+                                            .with_rotation(Quat::from_rotation_y(rotation_y)),
+                                        ..default()
+                                    },
+                                ));
                             }
                         }
                     }
@@ -221,9 +236,13 @@ fn spawn_chunks_around_camera(
 
                     let chunk_entity = commands.spawn_empty().id();
                     chunk_manager.insert(coord, chunk_entity);
-                    let translation = helpers::geometry::chunk_coord_to_world_pos(&coord, &chunk_size, &tile_size)
-                        .extend(0.0)
-                        .xzy();
+                    let translation = helpers::geometry::chunk_coord_to_world_pos(
+                        &coord,
+                        &chunk_size,
+                        &tile_size,
+                    )
+                    .extend(0.0)
+                    .xzy();
 
                     commands.entity(chunk_entity).insert((
                         ChunkCoord(coord),

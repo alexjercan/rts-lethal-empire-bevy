@@ -25,11 +25,8 @@ use debug::DebugModePlugin;
 //   - [x] PDD do it with builder pattern
 // - [ ] Buildings
 //   - [x] placing building on the map
-//   - [ ] models for buildings (really basic ones, I only need them to be there as a proof of concept)
+//   - [x] models for buildings (really basic ones, I only need them to be there as a proof of concept)
 //   - [ ] with units that can get resources from the map (really basic they can go trough things)
-// - [ ] Refactor
-//   - [ ] how can I avoid having to expose chunk manager; I need something that just returns
-//   chunks and stuff from terrain itself (hide away the chunk manager)
 // - [ ] Pathfinding
 //   - [ ] units that can move on the map based on tiles
 // - [ ] Main Goal

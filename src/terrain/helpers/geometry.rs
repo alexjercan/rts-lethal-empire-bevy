@@ -11,7 +11,9 @@ pub fn chunk_coord_to_world_pos(chunk_coord: &IVec2, size: &UVec2, tile_size: &V
 /// Convert a world position to a chunk coordinate.
 pub fn world_pos_to_chunk_coord(world_pos: &Vec2, size: &UVec2, tile_size: &Vec2) -> IVec2 {
     let chunk_size = size.as_vec2() * *tile_size;
-    let chunk_coord = (*world_pos / chunk_size).floor().as_ivec2();
+    let world_pos = *world_pos + chunk_size / 2.0;
+    let delta = IVec2::new((world_pos.x < 0.0) as i32, (world_pos.y < 0.0) as i32);
+    let chunk_coord = (world_pos / chunk_size).as_ivec2() - delta;
 
     return chunk_coord;
 }

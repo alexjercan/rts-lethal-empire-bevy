@@ -1,16 +1,19 @@
-use std::f32::consts::FRAC_PI_2;
+use std::{collections::HashSet, f32::consts::FRAC_PI_2};
 
 use bevy::prelude::*;
 
 use crate::{
     assets::GameAssets,
     states::GameStates,
-    terrain::{self, ChunkManager},
-    ToolMode,
+    terrain::{self, ChunkCoord, ChunkManager, TileCoord},
+    Obstacle, ToolMode,
 };
 
 #[derive(Component)]
 pub struct BuildingTool;
+
+#[derive(Component, Deref, DerefMut)]
+pub struct BuildingToolValid(bool);
 
 #[derive(Component)]
 struct GhostBuilding;
@@ -37,6 +40,7 @@ impl Plugin for BuildingPlugin {
                     follow_building_tool,
                     rotate_building_tool,
                     handle_building_tool,
+                    check_building_tool_valid,
                 )
                     .run_if(in_state(GameStates::Playing).and_then(run_if_build_mode)),
             )
@@ -55,10 +59,10 @@ fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>) {
     commands
         .spawn((
             BuildingTool,
+            BuildingToolValid(false),
             BuildingKind::default(),
             SpatialBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 0.0)
-                    .with_scale(Vec3::splat(16.0)),
+                transform: Transform::from_xyz(0.0, 0.0, 0.0).with_scale(Vec3::splat(16.0)),
                 ..default()
             },
         ))
@@ -153,21 +157,19 @@ fn follow_building_tool(
 fn handle_building_tool(
     mut commands: Commands,
     mouse_button_input: Res<ButtonInput<MouseButton>>,
-    q_camera: Query<(&Camera, &GlobalTransform)>,
-    windows: Query<&Window>,
-    q_tool: Query<(&BuildingKind, &Transform), With<BuildingTool>>,
+    q_tool: Query<(&BuildingKind, &BuildingToolValid, &Transform), With<BuildingTool>>,
     chunk_manager: Res<ChunkManager>,
     game_assets: Res<GameAssets>,
 ) {
-    let Ok((building_kind, tool_transform)) = q_tool.get_single() else {
+    let Ok((building_kind, building_valid, tool_transform)) = q_tool.get_single() else {
         return;
     };
-    let Ok((camera, camera_transform)) = q_camera.get_single() else {
+
+    if !**building_valid {
         return;
-    };
-    let Some(point) = screen_to_world(camera, camera_transform, windows.single()) else {
-        return;
-    };
+    }
+
+    let point = tool_transform.translation;
 
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
@@ -195,6 +197,41 @@ fn handle_building_tool(
             ));
         });
     }
+}
+
+fn check_building_tool_valid(
+    chunk_manager: Res<ChunkManager>,
+    q_chunks: Query<&Children, With<ChunkCoord>>,
+    q_tiles: Query<&TileCoord, With<Obstacle>>,
+    mut q_tool: Query<(&mut BuildingToolValid, &Transform), With<BuildingTool>>,
+) {
+    let Ok((mut building_valid, tool_transform)) = q_tool.get_single_mut() else {
+        return;
+    };
+    let point = tool_transform.translation;
+
+    let size = chunk_manager.size();
+    let tile_size = chunk_manager.tile_size();
+    let chunk_coord =
+        terrain::helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
+    let tile_coord =
+        terrain::helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
+
+    println!("{:?} in {:?}", tile_coord, chunk_coord);
+
+    let Some(chunk) = chunk_manager.get(&chunk_coord) else {
+        return;
+    };
+    let Ok(children) = q_chunks.get(*chunk) else {
+        return;
+    };
+
+    let obstacles = children
+        .into_iter()
+        .filter_map(|child| q_tiles.get(*child).ok().map(|x| **x))
+        .collect::<HashSet<UVec2>>();
+
+    **building_valid = !obstacles.contains(&tile_coord);
 }
 
 fn screen_to_world(

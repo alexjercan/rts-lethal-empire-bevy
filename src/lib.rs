@@ -16,3 +16,6 @@ pub enum ToolMode {
     Select,
     Build,
 }
+
+#[derive(Component)]
+pub struct Obstacle;
