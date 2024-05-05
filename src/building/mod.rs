@@ -3,7 +3,11 @@ use std::{collections::HashSet, f32::consts::FRAC_PI_2};
 use bevy::prelude::*;
 
 use crate::{
-    assets::GameAssets, helpers, states::GameStates, terrain::{ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping}, Obstacle, ToolMode
+    assets::GameAssets,
+    helpers,
+    states::GameStates,
+    terrain::{ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping},
+    Obstacle, ToolMode,
 };
 
 #[derive(Component)]
@@ -170,16 +174,13 @@ fn handle_building_tool(
 
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
-    let chunk_coord =
-        helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
+    let chunk_coord = helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
     let Some(chunk) = chunk_manager.get(&chunk_coord) else {
         return;
     };
 
-    let tile_coord =
-        helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
-    let tile_pos =
-        helpers::geometry::tile_coord_to_world_off(&tile_coord, &size, &tile_size);
+    let tile_coord = helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
+    let tile_pos = helpers::geometry::tile_coord_to_world_off(&tile_coord, &size, &tile_size);
     if mouse_button_input.just_pressed(MouseButton::Left) {
         let scene = game_assets.buildings[&*building_kind].clone();
 
@@ -211,10 +212,8 @@ fn check_building_tool_valid(
 
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();
-    let chunk_coord =
-        helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
-    let tile_coord =
-        helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
+    let chunk_coord = helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
+    let tile_coord = helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
 
     println!("{:?} in {:?}", tile_coord, chunk_coord);
 

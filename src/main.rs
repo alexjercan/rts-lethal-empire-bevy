@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use lethal_empire_bevy::{assets::GameAssets, building::BuildingPlugin, states::GameStates, terrain::TerrainPlugin, ToolMode};
+use lethal_empire_bevy::{
+    assets::GameAssets, building::BuildingPlugin, states::GameStates, terrain::TerrainPlugin,
+    ToolMode,
+};
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -51,8 +54,10 @@ fn main() {
         ..default()
     }));
 
-    app.init_resource::<ToolMode>()
-        .add_systems(Update, select_tool_mode.run_if(in_state(GameStates::Playing)));
+    app.init_resource::<ToolMode>().add_systems(
+        Update,
+        select_tool_mode.run_if(in_state(GameStates::Playing)),
+    );
 
     app.add_plugins(PanOrbitCameraPlugin)
         .add_plugins(TerrainPlugin::new(0))

@@ -1,7 +1,10 @@
 use std::f32::consts::FRAC_PI_2;
 
 use bevy::prelude::*;
-use lethal_empire_bevy::{terrain::{ChunkCoord, ChunkManager}, helpers};
+use lethal_empire_bevy::{
+    helpers,
+    terrain::{ChunkCoord, ChunkManager},
+};
 
 use crate::GameStates;
 
@@ -78,7 +81,9 @@ fn draw_chunks(mut gizmos: Gizmos, q_chunks: Query<&ChunkCoord>, chunk_manager: 
         let chunk_size = chunk_manager.size();
         let tile_size = chunk_manager.tile_size();
 
-        let position = helpers::geometry::chunk_coord_to_world_pos(&coord, &chunk_size, &tile_size).extend(0.0).xzy();
+        let position = helpers::geometry::chunk_coord_to_world_pos(&coord, &chunk_size, &tile_size)
+            .extend(0.0)
+            .xzy();
         gizmos.sphere(position, Quat::IDENTITY, 0.5, Color::RED);
 
         gizmos.rect(

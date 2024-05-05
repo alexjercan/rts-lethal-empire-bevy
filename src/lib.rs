@@ -5,11 +5,11 @@ extern crate test;
 use bevy::prelude::*;
 
 pub mod assets;
+pub mod building;
+pub mod helpers;
 pub mod sampling;
 pub mod states;
 pub mod terrain;
-pub mod building;
-pub mod helpers;
 
 #[derive(Resource, Default, Debug)]
 pub enum ToolMode {

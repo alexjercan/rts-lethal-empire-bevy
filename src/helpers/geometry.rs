@@ -79,7 +79,8 @@ pub fn global_coord_to_chunk_coord(global_coord: &IVec2, size: &UVec2) -> IVec2 
 
 /// Convert a tile coordinate to a world offset.
 pub fn tile_coord_to_world_off(tile_coord: &UVec2, size: &UVec2, tile_size: &Vec2) -> Vec2 {
-    let offset = (tile_coord.as_ivec2() - size.as_ivec2() / 2).as_vec2() * *tile_size + *tile_size / 2.0;
+    let offset =
+        (tile_coord.as_ivec2() - size.as_ivec2() / 2).as_vec2() * *tile_size + *tile_size / 2.0;
 
     return offset;
 }

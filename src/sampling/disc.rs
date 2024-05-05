@@ -143,7 +143,9 @@ mod tests {
 
     #[bench]
     fn bench_poisson_disc_sampler(b: &mut Bencher) {
-        let sampler = PoissonDiscSampler::new(0).with_radius(1.0).with_size(Vec2::splat(32.0));
+        let sampler = PoissonDiscSampler::new(0)
+            .with_radius(1.0)
+            .with_size(Vec2::splat(32.0));
 
         b.iter(|| sampler.sample());
     }
