@@ -10,7 +10,7 @@ pub mod states;
 pub mod terrain;
 pub mod building;
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Debug)]
 pub enum ToolMode {
     #[default]
     Select,
