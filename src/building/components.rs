@@ -10,6 +10,9 @@ pub(super) struct BuildingToolValid(pub bool);
 pub(super) struct GhostBuilding;
 
 #[derive(Component)]
+pub(super) struct BuildingValidGhost;
+
+#[derive(Component)]
 pub struct Building;
 
 #[derive(Component, Default, PartialEq, Eq, Clone, Hash, Debug)]

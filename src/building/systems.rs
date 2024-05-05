@@ -8,9 +8,17 @@ use crate::{
     terrain::{ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping},
 };
 
-use super::{Building, BuildingKind, BuildingTool, BuildingToolValid, GhostBuilding};
+use super::{
+    Building, BuildingKind, BuildingTool, BuildingToolValid, BuildingValidGhost, GhostBuilding,
+    ValidBuildingToolMaterial,
+};
 
-pub fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>) {
+pub fn setup_building_tool(
+    mut commands: Commands,
+    game_assets: Res<GameAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ValidBuildingToolMaterial>>,
+) {
     commands
         .spawn((
             BuildingTool,
@@ -22,6 +30,17 @@ pub fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>)
             },
         ))
         .with_children(|parent| {
+            parent.spawn((
+                BuildingValidGhost,
+                MaterialMeshBundle {
+                    mesh: meshes.add(Cuboid::from_size(Vec3::splat(1.0))),
+                    material: materials.add(ValidBuildingToolMaterial::default()),
+                    transform: Transform::from_xyz(0.0, 0.5, 0.0),
+                    visibility: Visibility::Hidden,
+                    ..default()
+                },
+            ));
+
             for (kind, scene) in &game_assets.buildings {
                 parent.spawn((
                     GhostBuilding,
@@ -36,6 +55,22 @@ pub fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>)
         });
 }
 
+pub fn update_tool_ghost_material(
+    q_tool: Query<&BuildingToolValid, With<BuildingTool>>,
+    q_tool_ghost: Query<&Handle<ValidBuildingToolMaterial>, With<BuildingValidGhost>>,
+    mut materials: ResMut<Assets<ValidBuildingToolMaterial>>,
+) {
+    let Ok(building_valid) = q_tool.get_single() else {
+        return;
+    };
+
+    for handle in q_tool_ghost.iter() {
+        if let Some(material) = materials.get_mut(handle) {
+            material.valid = **building_valid as u32;
+        }
+    }
+}
+
 pub fn update_ghost_building(
     tool_mode: Res<ToolMode>,
     q_tool: Query<(&BuildingKind, Ref<BuildingKind>), With<BuildingTool>>,
@@ -43,12 +78,20 @@ pub fn update_ghost_building(
         (&BuildingKind, &mut Visibility),
         (With<GhostBuilding>, Without<BuildingTool>),
     >,
+    mut q_tool_ghost: Query<&mut Visibility, (With<BuildingValidGhost>, Without<GhostBuilding>)>,
 ) {
     let Ok((building_kind, component)) = q_tool.get_single() else {
         return;
     };
 
     if tool_mode.is_changed() || component.is_changed() {
+        for mut visibility in q_tool_ghost.iter_mut() {
+            *visibility = match *tool_mode {
+                ToolMode::Build => Visibility::Visible,
+                _ => Visibility::Hidden,
+            };
+        }
+
         for (kind, mut visibility) in q_ghost.iter_mut() {
             *visibility = match *tool_mode {
                 ToolMode::Build if *building_kind == *kind => Visibility::Visible,

@@ -18,7 +18,7 @@ use bevy::{
 const MAX_TEXTURE_COUNT: usize = 4;
 
 #[derive(Asset, TypePath, Debug, Clone)]
-pub struct TerrainMaterial {
+pub(super) struct TerrainMaterial {
     size: UVec2,
     textures: Vec<Handle<Image>>,
     mapping: Vec<u32>,
