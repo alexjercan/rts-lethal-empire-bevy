@@ -1,8 +1,8 @@
 use std::f32::consts::FRAC_PI_2;
 
 use crate::{
+    core::GameStates,
     helpers,
-    states::GameStates,
     terrain::{ChunkCoord, ChunkManager},
 };
 use bevy::prelude::*;

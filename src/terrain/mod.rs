@@ -1,10 +1,11 @@
-use crate::states::GameStates;
 use bevy::prelude::*;
 pub use components::*;
 use materials::*;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 pub use resources::*;
 use systems::*;
+
+use crate::core::GameStates;
 
 mod components;
 mod materials;

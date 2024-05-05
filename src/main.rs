@@ -1,13 +1,5 @@
 use bevy::prelude::*;
-use bevy_asset_loader::prelude::*;
-use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use lethal_empire_bevy::{
-    assets::GameAssets, building::BuildingPlugin, states::GameStates, terrain::TerrainPlugin,
-    ToolMode,
-};
-
-#[cfg(feature = "debug")]
-use lethal_empire_bevy::debug::DebugModePlugin;
+use lethal_empire_bevy::core::LethalEmpirePlugin;
 
 // # Version 0.2
 // - [x] Tile based map V2
@@ -37,63 +29,5 @@ use lethal_empire_bevy::debug::DebugModePlugin;
 // - [ ] plan for V3
 
 fn main() {
-    let mut app = App::new();
-
-    #[cfg(feature = "debug")]
-    app.add_plugins(DebugModePlugin);
-
-    #[cfg(not(feature = "debug"))]
-    app.add_plugins(DefaultPlugins);
-
-    #[cfg(feature = "debug")]
-    app.add_plugins(DefaultPlugins.set(bevy::log::LogPlugin {
-        level: bevy::log::Level::DEBUG,
-        ..default()
-    }));
-
-    app.init_resource::<ToolMode>().add_systems(
-        Update,
-        select_tool_mode.run_if(in_state(GameStates::Playing)),
-    );
-
-    app.add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(TerrainPlugin::new(0))
-        .add_plugins(BuildingPlugin)
-        .init_state::<GameStates>()
-        .add_loading_state(
-            LoadingState::new(GameStates::AssetLoading)
-                .continue_to_state(GameStates::Playing)
-                .load_collection::<GameAssets>(),
-        )
-        .add_systems(OnEnter(GameStates::Playing), setup)
-        .run();
-}
-
-fn setup(mut commands: Commands) {
-    // light
-    commands.spawn(DirectionalLightBundle {
-        transform: Transform::from_translation(Vec3::ONE).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
-
-    // camera
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        PanOrbitCamera {
-            button_orbit: MouseButton::Right,
-            button_pan: MouseButton::Middle,
-            ..default()
-        },
-    ));
-}
-
-fn select_tool_mode(mut tool_mode: ResMut<ToolMode>, input: Res<ButtonInput<KeyCode>>) {
-    if input.just_pressed(KeyCode::Escape) {
-        *tool_mode = ToolMode::Select;
-    } else if input.just_pressed(KeyCode::KeyB) {
-        *tool_mode = ToolMode::Build;
-    }
+    App::new().add_plugins(LethalEmpirePlugin).run();
 }

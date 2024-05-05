@@ -3,10 +3,9 @@ use std::f32::consts::FRAC_PI_2;
 use bevy::{prelude::*, utils::HashSet};
 
 use crate::{
-    assets::GameAssets,
+    core::{GameAssets, Obstacle, ToolMode},
     helpers,
     terrain::{ChunkCoord, ChunkManager, TileCoord, TileKind, TileMapping},
-    Obstacle, ToolMode,
 };
 
 use super::{Building, BuildingKind, BuildingTool, BuildingToolValid, GhostBuilding};

@@ -1,6 +1,6 @@
 use rand::{rngs::StdRng, SeedableRng};
 
-use crate::{assets::GameAssets, helpers, helpers::sampling::disc::PoissonDiscSampler, Obstacle};
+use crate::{core::{GameAssets, Obstacle}, helpers::{self, sampling::disc::PoissonDiscSampler}};
 
 use bevy::{
     ecs::system::CommandQueue,
@@ -85,6 +85,7 @@ pub fn handle_chunks_resources(
                             let points = PoissonDiscSampler::new(tile_seed)
                                 .with_radius(8.0)
                                 .with_size(tile_size)
+                                .with_k(30)
                                 .sample();
 
                             for point in points {
@@ -107,6 +108,7 @@ pub fn handle_chunks_resources(
                             let points = PoissonDiscSampler::new(tile_seed)
                                 .with_radius(12.0)
                                 .with_size(tile_size)
+                                .with_k(30)
                                 .sample();
 
                             for point in points {
@@ -130,6 +132,7 @@ pub fn handle_chunks_resources(
                             let points = PoissonDiscSampler::new(tile_seed)
                                 .with_radius(12.0)
                                 .with_size(tile_size)
+                                .with_k(30)
                                 .sample();
 
                             for point in points {

@@ -1,7 +1,8 @@
-use crate::{states::GameStates, ToolMode};
 use bevy::prelude::*;
 pub use components::*;
 use systems::*;
+
+use crate::core::{GameStates, ToolMode};
 
 mod components;
 mod systems;
