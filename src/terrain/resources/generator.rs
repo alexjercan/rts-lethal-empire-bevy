@@ -28,7 +28,7 @@ impl ResourceGenerator {
 impl ResourceGenerator {
     pub fn generate(&self, coord: IVec2, size: UVec2) -> Vec<ResourceKind> {
         let perlin = Fbm::<Perlin>::new(self.seed as u32)
-            .set_frequency(1.0)
+            .set_frequency(2.0)
             .set_persistence(0.5)
             .set_lacunarity(2.0)
             .set_octaves(14);
@@ -36,7 +36,7 @@ impl ResourceGenerator {
         let worley = Worley::new(self.seed as u32)
             .set_distance_function(distance_functions::euclidean)
             .set_return_type(ReturnType::Value)
-            .set_frequency(1.0);
+            .set_frequency(2.0);
 
         return PlaneMapBuilder::new(perlin)
             .set_size(size.x as usize, size.y as usize)

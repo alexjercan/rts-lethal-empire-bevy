@@ -10,11 +10,12 @@ use self::{
     tiles::{TileKind, TileMapping, TilesPlugin},
 };
 
+pub use self::chunking::{CHUNK_SIZE, CHUNK_TILE_SIZE};
+
 mod resources;
 mod tiles;
-
 mod chunking;
-mod helpers;
+pub mod helpers;
 mod materials;
 
 const SPAWN_CHUNK_RADIUS: usize = 8;
@@ -221,15 +222,14 @@ fn spawn_chunks_around_camera(
 
                     let chunk_entity = commands.spawn_empty().id();
                     chunk_manager.insert(coord, chunk_entity);
+                    let translation = helpers::geometry::chunk_coord_to_world_pos(&coord, &chunk_size, &tile_size)
+                        .extend(0.0)
+                        .xzy();
+
                     commands.entity(chunk_entity).insert((
                         ChunkCoord(coord),
                         SpatialBundle {
-                            transform: helpers::geometry::get_chunk_coord_transform(
-                                &coord,
-                                &chunk_size,
-                                &tile_size,
-                                0.0,
-                            ),
+                            transform: Transform::from_translation(translation),
                             visibility: Visibility::Hidden,
                             ..default()
                         },

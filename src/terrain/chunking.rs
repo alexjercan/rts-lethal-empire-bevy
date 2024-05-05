@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::*;
 
-const CHUNK_SIZE: usize = 128;
-const CHUNK_TILE_SIZE: f32 = 16.0;
+pub const CHUNK_SIZE: usize = 32;
+pub const CHUNK_TILE_SIZE: f32 = 16.0;
 
 #[derive(Debug, Resource)]
 pub struct ChunkManager {
