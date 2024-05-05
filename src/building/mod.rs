@@ -57,7 +57,8 @@ fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>) {
             BuildingTool,
             BuildingKind::default(),
             SpatialBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                transform: Transform::from_xyz(0.0, 0.0, 0.0)
+                    .with_scale(Vec3::splat(16.0)),
                 ..default()
             },
         ))
@@ -68,7 +69,6 @@ fn setup_building_tool(mut commands: Commands, game_assets: Res<GameAssets>) {
                     kind.clone(),
                     SceneBundle {
                         scene: scene.clone(),
-                        transform: Transform::from_scale(Vec3::splat(16.0)),
                         visibility: Visibility::Hidden,
                         ..default()
                     },
@@ -189,9 +189,7 @@ fn handle_building_tool(
                 Building,
                 SceneBundle {
                     scene,
-                    transform: Transform::from_translation(tile_pos.extend(0.0).xzy())
-                        .with_scale(Vec3::splat(16.0))
-                        .with_rotation(tool_transform.rotation),
+                    transform: tool_transform.with_translation(tile_pos.extend(0.0).xzy()),
                     ..default()
                 },
             ));
