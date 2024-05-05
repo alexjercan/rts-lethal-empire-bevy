@@ -9,7 +9,7 @@ use self::{
     tiles::{TileKind, TileMapping, TilesPlugin},
 };
 
-pub use self::chunking::{ChunkManager, CHUNK_SIZE, CHUNK_TILE_SIZE};
+pub use self::chunking::ChunkManager;
 
 mod resources;
 mod tiles;

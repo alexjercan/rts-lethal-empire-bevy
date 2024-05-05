@@ -35,6 +35,13 @@ pub fn global_coord_to_world_pos(global_coord: &IVec2, size: &UVec2, tile_size: 
     return world_pos;
 }
 
+pub fn snap_to_tile(world_pos: &Vec2, size: &UVec2, tile_size: &Vec2) -> Vec2 {
+    let tile_coord = world_pos_to_global_coord(world_pos, &size, &tile_size);
+    let tile_pos = global_coord_to_world_pos(&tile_coord, &size, &tile_size);
+
+    return tile_pos;
+}
+
 /// Convert a world position to a tile coordinate.
 pub fn world_pos_to_tile_coord(world_pos: &Vec2, size: &UVec2, tile_size: &Vec2) -> UVec2 {
     let chunk_coord = world_pos_to_chunk_coord(world_pos, size, tile_size);

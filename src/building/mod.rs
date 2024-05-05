@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     states::GameStates,
-    terrain::{self, ChunkManager, CHUNK_SIZE, CHUNK_TILE_SIZE},
+    terrain::{self, ChunkManager},
     ToolMode,
 };
 
@@ -115,6 +115,7 @@ fn follow_building_tool(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     mut q_building_tool: Query<&mut Transform, With<BuildingTool>>,
     windows: Query<&Window>,
+    chunk_manager: Res<ChunkManager>,
 ) {
     let Ok((camera, camera_transform)) = q_camera.get_single() else {
         return;
@@ -126,12 +127,9 @@ fn follow_building_tool(
         return;
     };
 
-    let size = UVec2::splat(CHUNK_SIZE as u32);
-    let tile_size = Vec2::splat(CHUNK_TILE_SIZE);
-    let tile_coord =
-        terrain::helpers::geometry::world_pos_to_global_coord(&point.xz(), &size, &tile_size);
-    let tile_pos =
-        terrain::helpers::geometry::global_coord_to_world_pos(&tile_coord, &size, &tile_size);
+    let size = chunk_manager.size();
+    let tile_size = chunk_manager.tile_size();
+    let tile_pos = terrain::helpers::geometry::snap_to_tile(&point.xz(), &size, &tile_size);
 
     building_tool_transform.translation = tile_pos.extend(0.0).xzy();
 }
@@ -157,30 +155,23 @@ fn handle_building_tool(
     let Ok((camera, camera_transform)) = q_camera.get_single() else {
         return;
     };
+
     let Some(point) = screen_to_world(camera, camera_transform, windows.single()) else {
         return;
     };
 
-    let chunk_coord = terrain::helpers::geometry::world_pos_to_chunk_coord(
-        &point.xz(),
-        &UVec2::splat(CHUNK_SIZE as u32),
-        &Vec2::splat(CHUNK_TILE_SIZE),
-    );
+    let size = chunk_manager.size();
+    let tile_size = chunk_manager.tile_size();
+    let chunk_coord =
+        terrain::helpers::geometry::world_pos_to_chunk_coord(&point.xz(), &size, &tile_size);
     let Some(chunk) = chunk_manager.get(&chunk_coord) else {
         return;
     };
 
-    let tile_coord = terrain::helpers::geometry::world_pos_to_tile_coord(
-        &point.xz(),
-        &UVec2::splat(CHUNK_SIZE as u32),
-        &Vec2::splat(CHUNK_TILE_SIZE),
-    );
-    let tile_pos = terrain::helpers::geometry::tile_coord_to_world_off(
-        &tile_coord,
-        &UVec2::splat(CHUNK_SIZE as u32),
-        &Vec2::splat(CHUNK_TILE_SIZE),
-    );
-
+    let tile_coord =
+        terrain::helpers::geometry::world_pos_to_tile_coord(&point.xz(), &size, &tile_size);
+    let tile_pos =
+        terrain::helpers::geometry::tile_coord_to_world_off(&tile_coord, &size, &tile_size);
     if mouse_button_input.just_pressed(MouseButton::Left) {
         match *building_kind {
             BuildingKind::LumberMill => {

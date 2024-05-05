@@ -1,7 +1,7 @@
 use std::f32::consts::FRAC_PI_2;
 
 use bevy::prelude::*;
-use lethal_empire_bevy::terrain::{self, ChunkCoord, CHUNK_SIZE, CHUNK_TILE_SIZE};
+use lethal_empire_bevy::terrain::{self, ChunkCoord, ChunkManager};
 
 use crate::GameStates;
 
@@ -44,6 +44,7 @@ fn draw_cursor_tile(
     q_camera: Query<(&Camera, &GlobalTransform)>,
     windows: Query<&Window>,
     mut gizmos: Gizmos,
+    chunk_manager: Res<ChunkManager>,
 ) {
     let (camera, camera_transform) = q_camera.single();
 
@@ -60,10 +61,9 @@ fn draw_cursor_tile(
     };
     let point = ray.get_point(distance);
 
-    let size = UVec2::splat(CHUNK_SIZE as u32);
-    let tile_size = Vec2::splat(CHUNK_TILE_SIZE);
-    let tile_coord = terrain::helpers::geometry::world_pos_to_global_coord(&point.xz(), &size, &tile_size);
-    let tile_pos = terrain::helpers::geometry::global_coord_to_world_pos(&tile_coord, &size, &tile_size);
+    let size = chunk_manager.size();
+    let tile_size = chunk_manager.tile_size();
+    let tile_pos = terrain::helpers::geometry::snap_to_tile(&point.xz(), &size, &tile_size);
 
     gizmos.rect(
         tile_pos.extend(0.0).xzy(),
@@ -73,18 +73,18 @@ fn draw_cursor_tile(
     );
 }
 
-fn draw_chunks(mut gizmos: Gizmos, q_chunks: Query<&ChunkCoord>) {
+fn draw_chunks(mut gizmos: Gizmos, q_chunks: Query<&ChunkCoord>, chunk_manager: Res<ChunkManager>) {
     for coord in q_chunks.iter() {
-        let chunk_size = CHUNK_SIZE as f32;
-        let tile_size = CHUNK_TILE_SIZE;
+        let chunk_size = chunk_manager.size();
+        let tile_size = chunk_manager.tile_size();
 
-        let position = (**coord).extend(0).xzy().as_vec3() * chunk_size * tile_size;
+        let position = terrain::helpers::geometry::chunk_coord_to_world_pos(&coord, &chunk_size, &tile_size).extend(0.0).xzy();
         gizmos.sphere(position, Quat::IDENTITY, 0.5, Color::RED);
 
         gizmos.rect(
             position,
             Quat::from_rotation_x(FRAC_PI_2),
-            Vec2::splat(chunk_size * tile_size),
+            chunk_size.as_vec2() * tile_size,
             Color::RED,
         );
     }
