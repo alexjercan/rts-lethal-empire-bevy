@@ -4,13 +4,12 @@ use rand::{rngs::StdRng, RngCore, SeedableRng};
 use crate::{assets::GameAssets, sampling::disc::PoissonDiscSampler, states::GameStates};
 
 use self::{
-    chunking::ChunkManager,
     materials::TerrainMaterial,
     resources::{ResourceKind, ResourceMapping, ResourcePlugin},
     tiles::{TileKind, TileMapping, TilesPlugin},
 };
 
-pub use self::chunking::{CHUNK_SIZE, CHUNK_TILE_SIZE};
+pub use self::chunking::{ChunkManager, CHUNK_SIZE, CHUNK_TILE_SIZE};
 
 mod resources;
 mod tiles;

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
-use lethal_empire_bevy::{assets::GameAssets, states::GameStates, terrain::TerrainPlugin};
+use lethal_empire_bevy::{assets::GameAssets, building::BuildingPlugin, states::GameStates, terrain::TerrainPlugin, ToolMode};
 
 #[cfg(feature = "debug")]
 mod debug;
@@ -24,8 +24,12 @@ use debug::DebugModePlugin;
 // - [x] Refactor
 //   - [x] PDD do it with builder pattern
 // - [ ] Buildings
-//   - [ ] placing building on the map
+//   - [x] placing building on the map
+//   - [ ] models for buildings (really basic ones, I only need them to be there as a proof of concept)
 //   - [ ] with units that can get resources from the map (really basic they can go trough things)
+// - [ ] Refactor
+//   - [ ] how can I avoid having to expose chunk manager; I need something that just returns
+//   chunks and stuff from terrain itself (hide away the chunk manager)
 // - [ ] Pathfinding
 //   - [ ] units that can move on the map based on tiles
 // - [ ] Main Goal
@@ -50,8 +54,12 @@ fn main() {
         ..default()
     }));
 
+    app.init_resource::<ToolMode>()
+        .add_systems(Update, select_tool_mode.run_if(in_state(GameStates::Playing)));
+
     app.add_plugins(PanOrbitCameraPlugin)
         .add_plugins(TerrainPlugin::new(0))
+        .add_plugins(BuildingPlugin)
         .init_state::<GameStates>()
         .add_loading_state(
             LoadingState::new(GameStates::AssetLoading)
@@ -81,4 +89,12 @@ fn setup(mut commands: Commands) {
             ..default()
         },
     ));
+}
+
+fn select_tool_mode(mut tool_mode: ResMut<ToolMode>, input: Res<ButtonInput<KeyCode>>) {
+    if input.just_pressed(KeyCode::Escape) {
+        *tool_mode = ToolMode::Select;
+    } else if input.just_pressed(KeyCode::KeyB) {
+        *tool_mode = ToolMode::Build;
+    }
 }
