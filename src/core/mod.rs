@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::PanOrbitCameraPlugin;
 
-use crate::{building::BuildingPlugin, terrain::TerrainPlugin};
+use crate::{building::BuildingPlugin, terrain::TerrainPlugin, camera::CameraPlugin};
 
 #[cfg(feature = "debug")]
 use crate::debug::DebugModePlugin;
@@ -41,6 +41,7 @@ impl Plugin for LethalEmpirePlugin {
         );
 
         app.add_plugins(PanOrbitCameraPlugin)
+            .add_plugins(CameraPlugin)
             .add_plugins(TerrainPlugin::new(0))
             .add_plugins(BuildingPlugin)
             .init_state::<GameStates>()
