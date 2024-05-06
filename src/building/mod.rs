@@ -9,6 +9,9 @@ mod components;
 mod materials;
 mod systems;
 
+pub const BUILDING_COST: u32 = 5;
+pub const BUILDING_RADIUS: u32 = 16;
+
 pub struct BuildingPlugin;
 
 impl Plugin for BuildingPlugin {
@@ -32,7 +35,7 @@ impl Plugin for BuildingPlugin {
             )
             .add_systems(
                 Update,
-                (select_building_kind, update_ghost_building).run_if(in_state(GameStates::Playing)),
+                (select_building_kind, update_ghost_building, building_increase_resource_count).run_if(in_state(GameStates::Playing)),
             );
     }
 }

@@ -18,6 +18,24 @@ pub fn world_pos_to_chunk_coord(world_pos: &Vec2, size: &UVec2, tile_size: &Vec2
     return chunk_coord;
 }
 
+pub fn world_area_to_chunk_coords(world_pos: &Vec2, tiles: u32, size: &UVec2, tile_size: &Vec2) -> Vec<IVec2> {
+    let chunk_coord = world_pos_to_chunk_coord(world_pos, size, tile_size);
+    let chunk_size = size.as_vec2();
+    let chunk_radius = tiles as f32 / chunk_size.x.max(chunk_size.y);
+    let chunk_radius = chunk_radius.ceil() as i32;
+    let mut coords = Vec::new();
+
+    for y in -chunk_radius..=chunk_radius {
+        for x in -chunk_radius..=chunk_radius {
+            let coord = chunk_coord + IVec2::new(x, y);
+
+            coords.push(coord);
+        }
+    }
+
+    return coords;
+}
+
 /// Convert a world position to a global tile coordinate.
 pub fn world_pos_to_global_coord(world_pos: &Vec2, size: &UVec2, tile_size: &Vec2) -> IVec2 {
     let chunk_coord = world_pos_to_chunk_coord(world_pos, size, tile_size);

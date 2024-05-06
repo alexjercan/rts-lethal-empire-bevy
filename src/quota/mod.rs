@@ -4,6 +4,7 @@ use crate::core::GameStates;
 
 const QUOTA_TIME: f32 = 600.0;
 const QUOTA_INITIAL: u32 = 10;
+const RESOURCE_INITIAL: u32 = 5;
 
 #[derive(Resource, Deref, DerefMut)]
 pub struct QuotaTimer(pub Timer);
@@ -23,8 +24,14 @@ impl Default for Quota {
     }
 }
 
-#[derive(Resource, Default, Deref, DerefMut)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct ResourceCount(pub u32);
+
+impl Default for ResourceCount {
+    fn default() -> Self {
+        ResourceCount(RESOURCE_INITIAL)
+    }
+}
 
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct QuotaSuccess(pub bool);

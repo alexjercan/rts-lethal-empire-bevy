@@ -21,7 +21,7 @@ pub enum TileKind {
     Barren,
 }
 
-#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Component, Default, Debug, Clone, Copy, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum ResourceKind {
     #[default]

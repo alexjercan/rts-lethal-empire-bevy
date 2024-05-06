@@ -95,6 +95,7 @@ pub fn handle_chunks_resources(
                                 parent.spawn((
                                     TileCoord(tile_coord),
                                     Obstacle,
+                                    ResourceKind::Tree,
                                     SceneBundle {
                                         scene: game_assets.tree.clone(),
                                         transform: Transform::from_translation(translation)
@@ -118,6 +119,7 @@ pub fn handle_chunks_resources(
                                 parent.spawn((
                                     TileCoord(tile_coord),
                                     Obstacle,
+                                    ResourceKind::Tree,
                                     SceneBundle {
                                         scene: game_assets.tree_dead.clone(),
                                         transform: Transform::from_translation(translation)
@@ -143,6 +145,7 @@ pub fn handle_chunks_resources(
                                 parent.spawn((
                                     TileCoord(tile_coord),
                                     Obstacle,
+                                    ResourceKind::Rock,
                                     SceneBundle {
                                         scene: game_assets.rock.clone(),
                                         transform: Transform::from_translation(translation)

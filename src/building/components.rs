@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::terrain::ResourceKind;
+
 #[derive(Component)]
 pub struct BuildingTool;
 
@@ -20,4 +22,13 @@ pub enum BuildingKind {
     #[default]
     LumberMill,
     StoneQuarry,
+}
+
+impl Into<ResourceKind> for BuildingKind {
+    fn into(self) -> ResourceKind {
+        match self {
+            BuildingKind::LumberMill => ResourceKind::Tree,
+            BuildingKind::StoneQuarry => ResourceKind::Rock,
+        }
+    }
 }

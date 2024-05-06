@@ -1,10 +1,7 @@
 use std::f32::consts::FRAC_PI_2;
 
 use crate::{
-    core::GameStates,
-    helpers,
-    quota::ResourceCount,
-    terrain::{ChunkCoord, ChunkManager},
+    building::{Building, BUILDING_RADIUS}, core::GameStates, helpers, quota::ResourceCount, terrain::{ChunkCoord, ChunkManager}
 };
 use bevy::prelude::*;
 
@@ -20,6 +17,7 @@ impl Plugin for DebugModePlugin {
                 draw_chunks,
                 draw_cursor_tile,
                 cheat_add_resources,
+                draw_building_radius,
             )
                 .run_if(in_state(GameStates::Playing)),
         );
@@ -102,3 +100,19 @@ fn cheat_add_resources(
         **resource_count += 1;
     }
 }
+
+fn draw_building_radius(
+    q_buildings: Query<&GlobalTransform, With<Building>>,
+    mut gizmos: Gizmos,
+    chunk_manager: Res<ChunkManager>,
+) {
+    for transform in q_buildings.iter() {
+        let tile_size = chunk_manager.tile_size();
+        let radius = tile_size.x.max(tile_size.y) * BUILDING_RADIUS as f32;
+
+        let position = transform.translation().xz().extend(0.0).xzy();
+
+        gizmos.circle(position, Direction3d::Y, radius, Color::WHITE);
+    }
+}
+
