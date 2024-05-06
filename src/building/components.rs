@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub(super) struct BuildingTool;
+pub struct BuildingTool;
 
 #[derive(Component, Deref, DerefMut)]
 pub(super) struct BuildingToolValid(pub bool);

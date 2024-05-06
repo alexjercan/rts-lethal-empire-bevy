@@ -6,3 +6,12 @@ pub enum ToolMode {
     Select,
     Build,
 }
+
+#[derive(Resource, Debug, Deref, DerefMut)]
+pub struct CursorActive(pub bool);
+
+impl Default for CursorActive {
+    fn default() -> Self {
+        CursorActive(true)
+    }
+}

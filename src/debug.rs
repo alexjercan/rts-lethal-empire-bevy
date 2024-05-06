@@ -48,20 +48,13 @@ fn draw_cursor_tile(
     mut gizmos: Gizmos,
     chunk_manager: Res<ChunkManager>,
 ) {
-    let (camera, camera_transform) = q_camera.single();
-
-    let Some(cursor_position) = windows.single().cursor_position() else {
+    let Ok((camera, camera_transform)) = q_camera.get_single() else {
         return;
     };
-
-    let Some(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
+    let Some(point) = helpers::camera::screen_to_world(camera, camera_transform, windows.single())
+    else {
         return;
     };
-
-    let Some(distance) = ray.intersect_plane(Vec3::ZERO, Plane3d::new(Vec3::Y)) else {
-        return;
-    };
-    let point = ray.get_point(distance);
 
     let size = chunk_manager.size();
     let tile_size = chunk_manager.tile_size();

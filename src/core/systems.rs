@@ -24,10 +24,8 @@ pub fn setup(mut commands: Commands) {
     ));
 }
 
-pub fn select_tool_mode(mut tool_mode: ResMut<ToolMode>, input: Res<ButtonInput<KeyCode>>) {
+pub fn clear_tool_mode(mut tool_mode: ResMut<ToolMode>, input: Res<ButtonInput<KeyCode>>) {
     if input.just_pressed(KeyCode::Escape) {
         *tool_mode = ToolMode::Select;
-    } else if input.just_pressed(KeyCode::KeyB) {
-        *tool_mode = ToolMode::Build;
     }
 }

@@ -102,6 +102,7 @@ pub fn update_ghost_building(
 }
 
 pub fn select_building_kind(
+    mut tool_mode: ResMut<ToolMode>,
     mut q_tool: Query<&mut BuildingKind, With<BuildingTool>>,
     input: Res<ButtonInput<KeyCode>>,
 ) {
@@ -110,8 +111,10 @@ pub fn select_building_kind(
     };
 
     if input.just_pressed(KeyCode::Digit1) {
+        *tool_mode = ToolMode::Build;
         *building_kind = BuildingKind::LumberMill;
     } else if input.just_pressed(KeyCode::Digit2) {
+        *tool_mode = ToolMode::Build;
         *building_kind = BuildingKind::StoneQuarry;
     }
 }

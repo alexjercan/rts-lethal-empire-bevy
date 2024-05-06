@@ -3,10 +3,10 @@ pub use components::*;
 use materials::*;
 use systems::*;
 
-use crate::core::{GameStates, ToolMode};
+use crate::core::{CursorActive, GameStates, ToolMode};
 
-mod materials;
 mod components;
+mod materials;
 mod systems;
 
 pub struct BuildingPlugin;
@@ -18,10 +18,9 @@ impl Plugin for BuildingPlugin {
             .add_systems(
                 Update,
                 (
-                    select_building_kind,
                     follow_building_tool,
                     rotate_building_tool,
-                    handle_building_tool,
+                    handle_building_tool.run_if(|cursor_active: Res<CursorActive>| **cursor_active),
                     check_building_tool_valid,
                     update_tool_ghost_material,
                 )
@@ -33,7 +32,7 @@ impl Plugin for BuildingPlugin {
             )
             .add_systems(
                 Update,
-                update_ghost_building.run_if(in_state(GameStates::Playing)),
+                (select_building_kind, update_ghost_building).run_if(in_state(GameStates::Playing)),
             );
     }
 }

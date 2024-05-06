@@ -2,15 +2,15 @@ use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::PanOrbitCameraPlugin;
 
-use crate::{building::BuildingPlugin, terrain::TerrainPlugin, camera::CameraPlugin};
+use crate::{building::BuildingPlugin, camera::CameraPlugin, terrain::TerrainPlugin, ui::UIPlugin};
 
 #[cfg(feature = "debug")]
 use crate::debug::DebugModePlugin;
 
+pub use assets::*;
 pub use components::*;
 pub use resources::*;
 pub use states::*;
-pub use assets::*;
 use systems::*;
 
 mod assets;
@@ -35,21 +35,23 @@ impl Plugin for LethalEmpirePlugin {
             ..default()
         }));
 
-        app.init_resource::<ToolMode>().add_systems(
-            Update,
-            select_tool_mode.run_if(in_state(GameStates::Playing)),
-        );
-
         app.add_plugins(PanOrbitCameraPlugin)
             .add_plugins(CameraPlugin)
             .add_plugins(TerrainPlugin::new(0))
             .add_plugins(BuildingPlugin)
+            .add_plugins(UIPlugin)
             .init_state::<GameStates>()
             .add_loading_state(
                 LoadingState::new(GameStates::AssetLoading)
                     .continue_to_state(GameStates::Playing)
                     .load_collection::<GameAssets>(),
             )
-            .add_systems(OnEnter(GameStates::Playing), setup);
+            .init_resource::<ToolMode>()
+            .init_resource::<CursorActive>()
+            .add_systems(OnEnter(GameStates::Playing), setup)
+            .add_systems(
+                Update,
+                clear_tool_mode.run_if(in_state(GameStates::Playing)),
+            );
     }
 }

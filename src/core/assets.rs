@@ -28,6 +28,14 @@ pub struct GameAssets {
         collection(mapped, typed)
     )]
     pub buildings: HashMap<BuildingKind, Handle<Scene>>,
+    #[asset(
+        paths(
+            "images/buildings/lumber_mill.png",
+            "images/buildings/stone_quarry.png",
+        ),
+        collection(mapped, typed)
+    )]
+    pub ui_buildings: HashMap<BuildingKind, Handle<Image>>,
 }
 
 impl MapKey for BuildingKind {
