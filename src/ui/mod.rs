@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::{
     building::{BuildingKind, BuildingTool},
     core::{CursorActive, GameAssets, GameStates, ToolMode},
+    quota::{Quota, QuotaSuccess, QuotaTimer, ResourceCount},
 };
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
@@ -15,6 +16,18 @@ pub struct NoPointerCapture;
 #[derive(Component)]
 struct BuildingButton;
 
+#[derive(Component)]
+struct QuotaInformation;
+
+#[derive(Component)]
+struct QuotaSuccessDisplay;
+
+#[derive(Component)]
+struct QuotaSuccessDisplayRoot;
+
+#[derive(Component)]
+struct HideMeIn(Timer);
+
 pub struct UIPlugin;
 
 impl Plugin for UIPlugin {
@@ -25,7 +38,10 @@ impl Plugin for UIPlugin {
                 (
                     ui_button_interaction,
                     building_button_interaction,
-                    update_tool_mode_on_interraction,
+                    update_cursor_on_interraction,
+                    update_quota_information,
+                    update_quota_success_display,
+                    update_hide_me_in,
                 )
                     .run_if(in_state(GameStates::Playing)),
             );
@@ -38,12 +54,100 @@ fn setup_ui(mut commands: Commands, game_assets: Res<GameAssets>) {
             style: Style {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
-                align_items: AlignItems::End,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceBetween,
                 ..default()
             },
             ..default()
         })
         .with_children(|parent| {
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(10.0),
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Percent(50.0),
+                                height: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: NORMAL_BUTTON.into(),
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                QuotaInformation,
+                                TextBundle::from_section(
+                                    "TIME LEFT: 10:00 QUOTA: 500/1000",
+                                    TextStyle {
+                                        font_size: 40.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        ..default()
+                                    },
+                                ),
+                            ));
+                        });
+                });
+
+            parent
+                .spawn((
+                    QuotaSuccessDisplayRoot,
+                    NodeBundle {
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(80.0),
+                            flex_direction: FlexDirection::Row,
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        visibility: Visibility::Hidden,
+                        ..default()
+                    },
+                ))
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Percent(50.0),
+                                height: Val::Percent(50.0),
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: NORMAL_BUTTON.into(),
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                QuotaSuccessDisplay,
+                                TextBundle::from_section(
+                                    "STATUS",
+                                    TextStyle {
+                                        font_size: 40.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        ..default()
+                                    },
+                                ),
+                            ));
+                        });
+                });
+
             parent
                 .spawn(NodeBundle {
                     style: Style {
@@ -117,7 +221,7 @@ fn ui_button_interaction(
     }
 }
 
-fn update_tool_mode_on_interraction(
+fn update_cursor_on_interraction(
     q_interaction: Query<
         &Interaction,
         (With<Node>, Changed<Interaction>, Without<NoPointerCapture>),
@@ -150,6 +254,67 @@ fn building_button_interaction(
                 *building_kind = kind.clone();
             }
             _ => (),
+        }
+    }
+}
+
+fn update_quota_information(
+    mut q_quota: Query<&mut Text, With<QuotaInformation>>,
+    quota_timer: Res<QuotaTimer>,
+    resource_count: Res<ResourceCount>,
+    quota: Res<Quota>,
+) {
+    for mut text in q_quota.iter_mut() {
+        let seconds = quota_timer.remaining().as_secs();
+        let minutes = seconds / 60;
+        let seconds = seconds % 60;
+
+        text.sections[0].value = format!(
+            "TIME LEFT: {:02}:{:02} QUOTA: {}/{}",
+            minutes, seconds, **resource_count, **quota
+        );
+    }
+}
+
+fn update_quota_success_display(
+    mut commands: Commands,
+    mut q_display: Query<&mut Text, With<QuotaSuccessDisplay>>,
+    mut q_display_root: Query<(Entity, &mut Visibility), With<QuotaSuccessDisplayRoot>>,
+    quota_success: Res<QuotaSuccess>,
+) {
+    if !quota_success.is_changed() || quota_success.is_added() {
+        return;
+    }
+
+    for (display, mut visibility) in q_display_root.iter_mut() {
+        *visibility = Visibility::Visible;
+        commands.entity(display).insert(HideMeIn(Timer::from_seconds(5.0, TimerMode::Once)));
+    }
+
+    for mut text in q_display.iter_mut() {
+        text.sections[0].value = if **quota_success {
+            "You met the quota!".to_string()
+        } else {
+            "You didn't meet the quota!".to_string()
+        };
+        text.sections[0].style.color = if **quota_success {
+            Color::rgb(0.0, 1.0, 0.0)
+        } else {
+            Color::rgb(1.0, 0.0, 0.0)
+        };
+    }
+}
+
+fn update_hide_me_in(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut q_hide_me_in: Query<(Entity, &mut Visibility, &mut HideMeIn)>,
+) {
+    for (entity, mut visibility, mut timer) in q_hide_me_in.iter_mut() {
+        timer.0.tick(time.delta());
+        if timer.0.finished() {
+            commands.entity(entity).remove::<HideMeIn>();
+            *visibility = Visibility::Hidden;
         }
     }
 }

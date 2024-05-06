@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 use bevy_panorbit_camera::PanOrbitCameraPlugin;
 
-use crate::{building::BuildingPlugin, camera::CameraPlugin, terrain::TerrainPlugin, ui::UIPlugin};
+use crate::{building::BuildingPlugin, camera::CameraPlugin, quota::QuotaPlugin, terrain::TerrainPlugin, ui::UIPlugin};
 
 #[cfg(feature = "debug")]
 use crate::debug::DebugModePlugin;
@@ -40,6 +40,7 @@ impl Plugin for LethalEmpirePlugin {
             .add_plugins(TerrainPlugin::new(0))
             .add_plugins(BuildingPlugin)
             .add_plugins(UIPlugin)
+            .add_plugins(QuotaPlugin)
             .init_state::<GameStates>()
             .add_loading_state(
                 LoadingState::new(GameStates::AssetLoading)

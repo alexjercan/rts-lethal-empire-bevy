@@ -3,6 +3,7 @@ use std::f32::consts::FRAC_PI_2;
 use crate::{
     core::GameStates,
     helpers,
+    quota::ResourceCount,
     terrain::{ChunkCoord, ChunkManager},
 };
 use bevy::prelude::*;
@@ -14,7 +15,13 @@ impl Plugin for DebugModePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (draw_cursor, draw_chunks, draw_cursor_tile).run_if(in_state(GameStates::Playing)),
+            (
+                draw_cursor,
+                draw_chunks,
+                draw_cursor_tile,
+                cheat_add_resources,
+            )
+                .run_if(in_state(GameStates::Playing)),
         );
     }
 }
@@ -84,5 +91,14 @@ fn draw_chunks(mut gizmos: Gizmos, q_chunks: Query<&ChunkCoord>, chunk_manager: 
             chunk_size.as_vec2() * tile_size,
             Color::RED,
         );
+    }
+}
+
+fn cheat_add_resources(
+    mut resource_count: ResMut<ResourceCount>,
+    input: Res<ButtonInput<KeyCode>>,
+) {
+    if input.just_pressed(KeyCode::NumpadAdd) {
+        **resource_count += 1;
     }
 }
