@@ -19,7 +19,8 @@ cargo run
 
 ## Plans
 
-- [ ] Add the paying quota system
+- [x] Add the paying quota system
 - [x] Add more buildings for each resource type (lumberjack, stone quarry)
-- [ ] Workers that bring the resources from mines to outposts (pathfinding)
+- [x] Workers that bring the resources from mines to outposts (pathfinding)
 - [ ] War units and buildings that can be used to defend the base and attack enemies
+- [ ] Better assets
