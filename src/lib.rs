@@ -9,6 +9,7 @@ pub(crate) mod terrain;
 pub(crate) mod camera;
 pub(crate) mod ui;
 pub(crate) mod quota;
+pub(crate) mod units;
 
 #[cfg(feature = "debug")]
 pub(crate) mod debug;

@@ -1,4 +1,4 @@
-use std::f32::consts::FRAC_PI_2;
+use std::{collections::VecDeque, f32::consts::FRAC_PI_2};
 
 use bevy::{prelude::*, utils::HashSet};
 
@@ -7,11 +7,11 @@ use crate::{
     helpers,
     quota::ResourceCount,
     terrain::{ChunkCoord, ChunkManager, ResourceKind, TileCoord, TileKind, TileMapping},
+    units::{Unit, UnitVelocity, UnitWaypointAction, UnitWaypoints},
 };
 
 use super::{
-    Building, BuildingKind, BuildingTool, BuildingToolValid, BuildingValidGhost, GhostBuilding,
-    ValidBuildingToolMaterial, BUILDING_COST, BUILDING_RADIUS,
+    Building, BuildingHasWorker, BuildingKind, BuildingTool, BuildingToolValid, BuildingValidGhost, GhostBuilding, ValidBuildingToolMaterial, BUILDING_COST, BUILDING_RADIUS
 };
 
 pub fn setup_building_tool(
@@ -247,12 +247,13 @@ pub fn check_building_tool_valid(
 pub fn building_increase_resource_count(
     mut commands: Commands,
     chunk_manager: Res<ChunkManager>,
-    mut resource_count: ResMut<ResourceCount>,
-    q_buildings: Query<(&GlobalTransform, &BuildingKind), With<Building>>,
+    q_buildings: Query<(Entity, &GlobalTransform, &BuildingKind), (With<Building>, Without<BuildingHasWorker>)>,
     q_chunks: Query<&Children, With<ChunkCoord>>,
     q_resources: Query<(Entity, &GlobalTransform, &ResourceKind)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (building_transform, building_kind) in q_buildings.iter() {
+    for (building, building_transform, building_kind) in q_buildings.iter() {
         let point = building_transform.translation().xz();
 
         let size = chunk_manager.size();
@@ -268,7 +269,7 @@ pub fn building_increase_resource_count(
             .iter()
             .filter_map(|coord| chunk_manager.get(coord));
 
-        if let Some((closest, _position, distance)) = chunks
+        if let Some((closest, position, distance)) = chunks
             .filter_map(|chunk| q_chunks.get(*chunk).ok())
             .flatten()
             .filter_map(|child| q_resources.get(*child).ok())
@@ -278,8 +279,26 @@ pub fn building_increase_resource_count(
             .min_by_key(|(_, _, dist)| *dist as i32)
         {
             if distance < BUILDING_RADIUS as f32 * tile_size.x.max(tile_size.y) {
-                **resource_count += 1;
-                commands.entity(closest).despawn_recursive();
+                commands.entity(building).insert(BuildingHasWorker);
+
+                commands.spawn((
+                    Unit,
+                    UnitVelocity(16.0),
+                    UnitWaypoints(VecDeque::from(vec![
+                        (position, vec![UnitWaypointAction::Gather(closest)]),
+                        (point, vec![UnitWaypointAction::Deposit, UnitWaypointAction::Release(building)]),
+                    ])),
+                    MaterialMeshBundle {
+                        mesh: meshes.add(Capsule3d::new(0.5, 1.0)),
+                        material: materials.add(StandardMaterial {
+                            base_color: Color::WHITE,
+                            unlit: true,
+                            ..default()
+                        }),
+                        transform: Transform::from_translation(point.extend(2.0).xzy()).with_scale(Vec3::splat(2.0)),
+                        ..default()
+                    },
+                ));
             }
         }
     }
