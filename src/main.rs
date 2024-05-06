@@ -21,11 +21,11 @@ use lethal_empire_bevy::core::LethalEmpirePlugin;
 //   - [ ] with units that can get resources from the map (really basic they can go trough things)
 // - [ ] Pathfinding
 //   - [ ] units that can move on the map based on tiles
-// - [ ] Main Goal
-//   - [ ] need to pay quota of resources to the Empire over time
-//   - [ ] UI with the timer and quota needed and also how much we have
+// - [x] Main Goal
+//   - [x] need to pay quota of resources to the Empire over time
+//   - [x] UI with the timer and quota needed and also how much we have
 //   - "TIME LEFT: 10:00" "QUOTA: 500/1000"
-// - [ ] Better Camera: Using PanOrbitCameraPlugin for now, but we will need to create our own camera
+// - [ ] End Game: if the player can't pay the quota the game is over
 // - [ ] plan for V3
 
 fn main() {
